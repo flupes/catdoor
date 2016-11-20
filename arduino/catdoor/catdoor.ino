@@ -34,14 +34,10 @@ void update() {
       event_count++;
     }
     //    else {
-    //      Serial.print("Consider positive event after ");
-    //      Serial.print(NB_ANOMALY_COUNTS);
-    //      Serial.print(" samples higher than nominal ");
-    //      Serial.print(proxim_nominal);
-    //      Serial.print(" by ");
-    //      Serial.println(proxim_anomaly);
-    //      Serial.print("Last proximity reading is: ");
-    //      Serial.println(proxim_value);
+    //      Serial.print("Consider positive event after "); Serial.print(NB_ANOMALY_COUNTS);
+    //      Serial.print(" samples higher than nominal "); Serial.print(proxim_nominal);
+    //      Serial.print(" by "); Serial.println(proxim_anomaly);
+    //      Serial.print("Last proximity reading is: "); Serial.println(proxim_value);
     //    }
   } else {
     if ( event_count > 0 ) {
