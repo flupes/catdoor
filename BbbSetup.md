@@ -1,15 +1,20 @@
 # Setup the Beagle Bone Black
 
 ## Prepare the image
-Download:
-  bone-debian-8.6-iot-armhf-2016-11-06-4gb.img.xz
-From:
+Download:<br>
+  `bone-debian-8.6-iot-armhf-2016-11-06-4gb.img.xz`
+  
+From:<br>
   https://debian.beagleboard.org/images/
 
 Verify checksum:
+```
   sha256sum.exe bone-debian-8.6-iot-armhf-2016-11-06-4gb.img.xz
+```
 against:
+```
   bone-debian-8.6-iot-armhf-2016-11-06-4gb.img.xz.sha256sum
+```
 
 Burn to SD card using Win32DiskImager (if on Windows…)
 
