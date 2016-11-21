@@ -48,11 +48,15 @@ This can probably be done better simply with:
 ```
 
 ### Update the distro
+```
 sudo apt-get update
 sudo apt-get dist-upgrade
-Install extra packages
-emacs24-nox
+```
 
+###Install extra packages
+```
+emacs24-nox
+```
 
 ### De-bloat
 Inspired from:
@@ -74,6 +78,7 @@ passwd root
 ```
 
 ### Configure
+```
 sudo apt-get install mosquitto
-
+```
 
