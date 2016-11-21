@@ -1,6 +1,7 @@
 #include <ESP8266WiFi.h>
-#include <PubSubClient.h>
+#include <EEPROM.h>
 #include <Ticker.h>
+#include <PubSubClient.h>
 
 #include "Adafruit_VCNL4010.h"
 
@@ -18,6 +19,13 @@ uint16_t event_count = 0;
 
 uint16_t proxim_samples[NB_PROXIM_SAMPLES];
 bool event_detected = false;
+
+const uint8_t MAX_STRING_LENGTH = 32;
+const char *MQTT_SERVER = "172.16.0.11";
+const uint16_t MQTT_PORT = 1883;
+
+WiFiClient espWifiClient;
+PubSubClient mqttClient(espWifiClient);
 
 void heartbeat() {
   Serial.print("average promimity = ");
@@ -65,15 +73,71 @@ void update() {
   }
 }
 
+void publish_state(int8_t state) {
+  char payload[8];
+  if (state) {
+    strcpy(payload, "open");
+  }
+  else {
+    strcpy(payload, "closed");
+  }
+  while (!mqttClient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    if (mqttClient.connect("MistyDoor")) {
+      Serial.println("connected");
+      payload[0] = static_cast<char>(state);
+      mqttClient.publish("/catdoor/state", payload);
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
 void door_opened() {
   Serial.println("Cat door opened");
+  publish_state(1);
 }
 
 void door_closed() {
   Serial.println("Cat door closed.");
+  publish_state(0);
+}
+
+void eeprom2str(uint16_t addr, char *str) {
+  for (uint8_t c = 0; c < MAX_STRING_LENGTH; c++) {
+    str[c] = EEPROM.read(addr + c);
+  }
+}
+
+void setup_wifi() {
+  // Get SSID and password from EEPROM
+  EEPROM.begin(MAX_STRING_LENGTH * 2);
+  char ssid[MAX_STRING_LENGTH];
+  char pass[MAX_STRING_LENGTH];
+  eeprom2str(0, ssid);
+  eeprom2str(MAX_STRING_LENGTH, pass);
+  delay(100);   // not sure why, but examples work like this
+  Serial.println();
+  Serial.print("Connecting to network with SSID = ");
+  Serial.println(ssid);
+
+  // Connect to Wifi
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
 }
 
 void setup() {
+  // Sensor
   for (uint16_t i = 0; i < NB_PROXIM_SAMPLES; i++) {
     proxim_samples[i] = proxim_nominal;
   }
@@ -86,6 +150,11 @@ void setup() {
     Serial.println("Connected to Proximity Sensor.");
   }
 
+  // Network
+  setup_wifi();
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+
+  // Schedulers
   tickerHeartbeat.attach(10, heartbeat);
   tickerUpdate.attach_ms(100, update);
 
@@ -101,6 +170,10 @@ void loop() {
     door_closed();
     raised = false;
   }
+  // Let the MQTT client do some work
+  mqttClient.loop();
+
+  // Let the ESP Wifi do some work?
   yield();
 }
 
