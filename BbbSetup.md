@@ -33,18 +33,23 @@ Burn to SD card using Win32DiskImager (if on Windows…)
 3. `./init-eMMC-flasher-v3.sh`
 4. remove power
 5. remove SD-card
-6. apply power
+6. connect ethernet cable
+7. apply power
 
 
-### Set the time zone
+### De-bloat
+Inspired from:
+  * http://kacangbawang.com/beagleboneblack-revc-debloat-part-1/
+  * https://hacks.pmf.io/2015/06/21/securing-the-beaglebone-black/
+
 ```
-cd /etc
-sudo mv localtime localtime.org
-sudo ln -s /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
-```
-This can probably be done better simply with:
-```
-  sudo dpkg-reconfigure tzdata
+sudo apt-get purge xrdp
+sudo apt-get purge bone101
+sudo apt-get purge c9-core-installer
+sudo apt-get purge bb-node-red-installer
+sudo apt-get purge bonescript
+sudo apt-get purge apache2 apache2-bin apache2-data apache2-utils
+sudo apt-get autoremove
 ```
 
 ### Update the distro
@@ -53,22 +58,22 @@ sudo apt-get update
 sudo apt-get dist-upgrade
 ```
 
-###Install extra packages
+### Set the time zone
+Select the right time zone
+```
+sudo dpkg-reconfigure tzdata
+```
+
+Old manual method, just for reference:
+```
+cd /etc
+sudo mv localtime localtime.org
+sudo ln -s /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
+```
+
+### Install extra packages
 ```
 emacs24-nox
-```
-
-### De-bloat
-Inspired from:
-  * http://kacangbawang.com/beagleboneblack-revc-debloat-part-1/
-  * https://hacks.pmf.io/2015/06/21/securing-the-beaglebone-black/
-
-```
-sudo apt-get purge xrpd
-sudo apt-get purge c9-core-installer
-sudo apt-get purge bonescript
-sudo apt-get purge apache2 apache2-bin apache2-data apache2-utils
-sudo apt-get autoremove
 ```
 
 ### Secure
@@ -79,6 +84,7 @@ passwd root
 
 ### Configure
 ```
-sudo apt-get install mosquitto
+sudo apt-get install mosquitto mosquitto-clients
+
 ```
 
