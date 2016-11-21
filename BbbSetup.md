@@ -28,8 +28,8 @@ Burn to SD card using Win32DiskImager (if on Windows…)
 
 
 ### Flash eMMC
-1. cd /opt/scripts/tools/eMMC
-2. sudo bash
+1. `cd /opt/scripts/tools/eMMC`
+2. `sudo bash`
 3. `./init-eMMC-flasher-v3.sh`
 4. remove power
 5. remove SD-card
