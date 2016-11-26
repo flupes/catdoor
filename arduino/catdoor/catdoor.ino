@@ -13,6 +13,8 @@ Adafruit_VCNL4010 proxim_sensor;
 #define NB_PROXIM_SAMPLES 20
 #define NB_ANOMALY_COUNTS 15
 
+#define MAX_CLIENT_RETRIES 10
+
 uint16_t proxim_nominal = 2000;
 uint16_t proxim_anomaly = 100;
 uint16_t event_count = 0;
@@ -74,11 +76,15 @@ void update() {
   }
 }
 
-void connectClient() {
-  while (!mqttClient.connected()) {
+bool connectClient() {
+  uint8_t nbtry = 0;
+  bool connected = mqttClient.connected();
+  while ( !connected && nbtry < MAX_CLIENT_RETRIES ) {
     Serial.print("Attempting MQTT connection...");
+    nbtry++;
     if (mqttClient.connect("MistyDoor")) {
       Serial.println("connected");
+      connected = true;
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
@@ -87,13 +93,18 @@ void connectClient() {
       delay(5000);
     }
   }
-
+  if ( nbtry == MAX_CLIENT_RETRIES ) {
+    Serial.println("Give up on mqtt client connect!");
+    Serial.println("It would be a good time to reboot the board now...");
+    // system_restart();
+  }
+  return connected;
 }
+
 void publish_heartbeat() {
   char payload[8];
   sprintf(payload, "%d", proxim_nominal);
-//  connectClient();
-  if ( mqttClient.connected() ) {
+  if ( connectClient() ) {
     mqttClient.publish("/catdoor/avgproxim", payload);
   }
   else {
@@ -109,8 +120,7 @@ void publish_state(int8_t state) {
   else {
     strcpy(payload, "closed");
   }
-//  connectClient();
-  if ( mqttClient.connected() ) {
+  if ( connectClient() ) {
     mqttClient.publish("/catdoor/state", payload);
   }
   else {
@@ -176,9 +186,6 @@ void setup() {
   setup_wifi();
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
 
-  // Prepare client
-  connectClient();
-  
   // Schedulers
   // tickerHeartbeat.attach(10, heartbeat);
   // tickerUpdate.attach_ms(100, update);
