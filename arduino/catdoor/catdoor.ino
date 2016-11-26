@@ -1,17 +1,17 @@
 #include <ESP8266WiFi.h>
 #include <EEPROM.h>
-#include <Ticker.h>
 #include <PubSubClient.h>
+// #include <Ticker.h>
 
 #include "Adafruit_VCNL4010.h"
 
-Ticker tickerHeartbeat;
-Ticker tickerUpdate;
+// Ticker tickerHeartbeat;
+// Ticker tickerUpdate;
 
 Adafruit_VCNL4010 proxim_sensor;
 
 #define NB_PROXIM_SAMPLES 20
-#define NB_ANOMALY_COUNTS 8
+#define NB_ANOMALY_COUNTS 15
 
 uint16_t proxim_nominal = 2000;
 uint16_t proxim_anomaly = 100;
@@ -28,6 +28,7 @@ WiFiClient espWifiClient;
 PubSubClient mqttClient(espWifiClient);
 
 void heartbeat() {
+  publish_heartbeat();
   Serial.print("average promimity = ");
   Serial.println(proxim_nominal);
 }
@@ -67,9 +68,36 @@ void update() {
     }
     counter++;
   }
-  // take a sample for the average every second (update is called at 10Hz)
-  if ( counter >= 9 ) {
+  // take a sample for the average every second (update is called at 20Hz)
+  if ( counter >= 20 ) {
     counter = 0;
+  }
+}
+
+void connectClient() {
+  while (!mqttClient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    if (mqttClient.connect("MistyDoor")) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+
+}
+void publish_heartbeat() {
+  char payload[8];
+  sprintf(payload, "%d", proxim_nominal);
+//  connectClient();
+  if ( mqttClient.connected() ) {
+    mqttClient.publish("/catdoor/avgproxim", payload);
+  }
+  else {
+    Serial.println("Error: mqttClient not connected anymore");
   }
 }
 
@@ -81,19 +109,12 @@ void publish_state(int8_t state) {
   else {
     strcpy(payload, "closed");
   }
-  while (!mqttClient.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    if (mqttClient.connect("MistyDoor")) {
-      Serial.println("connected");
-      payload[0] = static_cast<char>(state);
-      mqttClient.publish("/catdoor/state", payload);
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(mqttClient.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
+//  connectClient();
+  if ( mqttClient.connected() ) {
+    mqttClient.publish("/catdoor/state", payload);
+  }
+  else {
+    Serial.println("Error: mqttClient not connected anymore");
   }
 }
 
@@ -120,10 +141,10 @@ void setup_wifi() {
   char pass[MAX_STRING_LENGTH];
   eeprom2str(0, ssid);
   eeprom2str(MAX_STRING_LENGTH, pass);
-  delay(100);   // not sure why, but examples work like this
   Serial.println();
   Serial.print("Connecting to network with SSID = ");
   Serial.println(ssid);
+  delay(100);
 
   // Connect to Wifi
   while (WiFi.status() != WL_CONNECTED) {
@@ -134,6 +155,7 @@ void setup_wifi() {
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+
 }
 
 void setup() {
@@ -141,7 +163,7 @@ void setup() {
   for (uint16_t i = 0; i < NB_PROXIM_SAMPLES; i++) {
     proxim_samples[i] = proxim_nominal;
   }
-  Serial.begin(9600);
+  Serial.begin(115200);
   if ( !proxim_sensor.begin() ) {
     Serial.println("Proximity Sensor not found: stop!");
     while (1);
@@ -154,14 +176,33 @@ void setup() {
   setup_wifi();
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
 
+  // Prepare client
+  connectClient();
+  
   // Schedulers
-  tickerHeartbeat.attach(10, heartbeat);
-  tickerUpdate.attach_ms(100, update);
+  // tickerHeartbeat.attach(10, heartbeat);
+  // tickerUpdate.attach_ms(100, update);
 
 }
 
 void loop() {
   static bool raised = false;
+  static uint8_t counter = 0;
+  static unsigned long last_millis = millis();
+
+  // publish heartbeat
+  unsigned long now_millis = millis();
+  if ( now_millis - last_millis > 50 ) {
+    update();
+    counter++;
+    if ( counter == 200 ) {
+      heartbeat();
+      counter = 0;
+    }
+    last_millis = now_millis;
+  }
+
+  // take care of event if any
   if ( !raised && event_count >= NB_ANOMALY_COUNTS ) {
     door_opened();
     raised = true;
@@ -170,10 +211,13 @@ void loop() {
     door_closed();
     raised = false;
   }
+
   // Let the MQTT client do some work
   mqttClient.loop();
 
+  delay(10);
+
   // Let the ESP Wifi do some work?
-  yield();
+  //yield();
 }
 
