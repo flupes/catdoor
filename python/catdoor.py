@@ -5,39 +5,64 @@ from threading import Timer
 
 import paho.mqtt.client as mqtt
 
-ALLOWED_SILENCE_SEC = 30
+def time2str(t):
+    return strftime("%Y-%m-%d_%H:%M:%S",t)
 
-def failed_heartbeat(last_heard):
-    print("Catdoor did not publish heartbeat since: "+
-          strftime("%Y-%m-%d_%H:%M:%S",catdoor_heartbeat.last_beat))
+class Heartbeat(object):
+    def __init__(self, max_silence_sec=60):
+        self.alive = False
+        self.last_beat = None
+        self.timer = None
+        self.duration = max_silence_sec
     
-def catdoor_heartbeat(msg):
-    global ALLOWED_SILENCE_SEC
-    if catdoor_heartbeat.last_beat == None:
-        catdoor_heartbeat.last_beat = localtime()
-        print("First time I heard of the catdoor: "+
-              strftime("%Y-%m-%d_%H:%M:%S",catdoor_heartbeat.last_beat))
-        # set timer
-        catdoor_heartbeat.timer = Timer(ALLOWED_SILENCE_SEC, failed_heartbeat,
-                                        args=[catdoor_heartbeat.last_beat])
-        catdoor_heartbeat.timer.start()
-    else:
-        catdoor_heartbeat.last_beat = localtime()
-        # reset timer
-        if catdoor_heartbeat.timer != None:
-            catdoor_heartbeat.timer.cancel()
-        catdoor_heartbeat.timer = Timer(ALLOWED_SILENCE_SEC, failed_heartbeat,
-                                        args=[catdoor_heartbeat.last_beat])
-        catdoor_heartbeat.timer.start()
-    print("Got avgproxim : "+msg.payload+" / time="+
-          strftime("%Y-%m-%d_%H:%M:%S",catdoor_heartbeat.last_beat))
+    def fresh_heartbeat(self):
+        self.alive = True
+        print("Catdoor is alive at: "+time2str(self.last_beat))
+    
+    def missing_heartbeat(self):
+        self.alive = False
+        print("Catdoor considered dead (locatime="+time2str(localtime)+")")
+        print("Last published heartbeat: "+time2str(self.last_beat))
+              
+    def heartbeat(self, msg):
+        self.last_beat = localtime()
+        if not self.alive:
+            self.fresh_heartbeat()
+        if self.timer != None:
+            self.timer.cancel()
+        self.timer = Timer(self.duration, self.missing_heartbeat)
+        self.timer.start()
+        print(time2str(self.last_beat)+" | got heartbeat"+
+              " | average proximity = "+msg.payload)
 
-catdoor_heartbeat.last_beat  = None
-catdoor_heartbeat.timer = None
+class DoorState(object):
+    def __init__(self, max_opened_state_sec):
+        self.state = None
+        self.up = None
+        self.timer = None
+        self.duration = max_opened_state_sec
 
-def catdoor_state(msg):
-    print ("Got new state : "+msg.payload)
+    def door_stuck(self):
+        self.up = False
+        print(time2str(localtime())+" | door may be stuck in opened position!")
 
+    def door_cycle(self):
+        self.up = False
+        print(time2str(localtime())+" | door cycle complete.")
+        
+    def new_state(self, msg):
+        print (time2str(localtime())+" | new state = "+msg.payload)
+        self.state = msg.payload
+        if self.state == "open":
+            self.up = True
+            self.timer = Timer(self.duration, self.door_stuck)
+            self.timer.start()
+        if self.state == "closed":
+            if self.up == True:
+                self.timer.cancel()
+                self.door_cycle()
+            else:
+                print(time2str(localtime())+" | door back to closed position...")
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
@@ -45,9 +70,12 @@ def on_connect(client, userdata, flags, rc):
     
 def on_message(client, userdata, msg):
     userdata[msg.topic](msg)
-    
-topiclist = { "/catdoor/avgproxim" : catdoor_heartbeat,
-              "/catdoor/state" : catdoor_state
+
+beatcheck = Heartbeat(20)
+doorstate = DoorState(6)
+               
+topiclist = { "/catdoor/avgproxim" : beatcheck.heartbeat,
+              "/catdoor/state" : doorstate.new_state
               }
     
 client = mqtt.Client("CatdoorSubscriber", True, topiclist)
