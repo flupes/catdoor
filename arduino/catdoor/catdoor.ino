@@ -15,8 +15,8 @@ Adafruit_VCNL4010 proxim_sensor;
 
 #define MAX_CLIENT_RETRIES 10
 
-uint16_t proxim_nominal = 2000;
-uint16_t proxim_anomaly = 100;
+uint16_t proxim_nominal = 1960;
+uint16_t proxim_anomaly = 160;
 uint16_t event_count = 0;
 
 uint16_t proxim_samples[NB_PROXIM_SAMPLES];
@@ -88,15 +88,15 @@ bool connectClient() {
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      Serial.println(" try again in 6 seconds");
+      // Wait 6 seconds before retrying
+      delay(6000);
     }
   }
   if ( nbtry == MAX_CLIENT_RETRIES ) {
     Serial.println("Give up on mqtt client connect!");
     Serial.println("It would be a good time to reboot the board now...");
-    // system_restart();
+    abort();
   }
   return connected;
 }
@@ -223,8 +223,5 @@ void loop() {
   mqttClient.loop();
 
   delay(10);
-
-  // Let the ESP Wifi do some work?
-  //yield();
 }
 
