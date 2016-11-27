@@ -21,8 +21,8 @@ class Heartbeat(object):
     
     def missing_heartbeat(self):
         self.alive = False
-        print("Catdoor considered dead (locatime="+time2str(localtime)+")")
-        print("Last published heartbeat: "+time2str(self.last_beat))
+        print(time2str(localtime())+" | Catdoor considered dead ("+
+              "last published heartbeat: "+time2str(self.last_beat)+")")
               
     def heartbeat(self, msg):
         self.last_beat = localtime()
