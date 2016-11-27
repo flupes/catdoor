@@ -74,6 +74,7 @@ sudo ln -s /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
 ### Install extra packages
 ```
 emacs24-nox
+byobu
 ```
 
 ### Secure
@@ -88,3 +89,8 @@ sudo apt-get install mosquitto mosquitto-clients
 
 ```
 
+### Python MQTT client
+Install Paho: https://pypi.python.org/pypi/paho-mqtt
+```
+sudo pip install paho-mqtt
+```
