@@ -13,6 +13,16 @@ screen.
 
 ### Files
 
+#### Results
+[`door_entry_signatures.svg`](./door_entry_signatures.svg) : graph of the door opening signatures
+
+[`cat_only_returns.svg`](./cat_only_returns.svg) : sensor with Misty playing under it (door closed)
+
+#### Analysis
+`door_signatures.ods` : analysis of the data (signature, timing,
+background)
+
+#### Logs
 `misty_entry_and_stay.log` : log with one entry (kind of messed up because
 Misty stop right under the sensor after entering since the treat was there)
 
@@ -23,12 +33,5 @@ previous logs
 
 `misty_only_?.log` : door closed, but Misty under the sensor (playing with
 my hand)
-
-`door_signatures.ods` : analysis of the data (signature, timing,
-background)
-
-`door_entry_signatures.svg` : graph of the door opening signatures
-
-`cat_only_returns.svg` : sensor with Misty playing under it (door closed)
 
 
