@@ -101,11 +101,13 @@ sudo pip install paho-mqtt
 ```
 ### SMTP server
 ```
-sudo apt-get install postfix
+sudo apt-get install postfix mailutils
 ```
 Select:
  - setup: Internet Site
  - system mail name: bbb.flupes.org
 
-Edit: `/etc/postfix/main.cfg`
-Reload: `/etc/init.d/postfix reload`
+Edit: `/etc/postfix/main.cf`
+
+Reload: `sudo systemctl restart postfix`
+
