@@ -5,6 +5,11 @@ from threading import Timer
 
 import paho.mqtt.client as mqtt
 
+from twilio.rest import TwilioRestClient
+account_sid = "..."
+auth_token = "..."
+twilioClient = TwilioRestClient(account_sid, auth_token)
+
 def time2str(t):
     return strftime("%Y-%m-%d_%H:%M:%S",t)
 
@@ -47,8 +52,15 @@ class DoorState(object):
         print(time2str(localtime())+" | door may be stuck in opened position!")
 
     def door_cycle(self):
+        global twilioClient
         self.up = False
         print(time2str(localtime())+" | door cycle complete.")
+        # This is incomplete because not resilient to network issues!
+        # Need to catch exception and retry if we want to use it
+        # @TODO Fix this lame code before using
+        message = twilioClient.messages.create(to="+16508610123",
+                                               from_="+14084703047",
+                                               body="Misty just go in @ "+time2str(localtime()))
         
     def new_state(self, msg):
         print (time2str(localtime())+" | new state = "+msg.payload)
@@ -78,11 +90,11 @@ topiclist = { "/catdoor/avgproxim" : beatcheck.heartbeat,
               "/catdoor/state" : doorstate.new_state
               }
     
-client = mqtt.Client("CatdoorSubscriber", True, topiclist)
-client.on_connect = on_connect
-client.on_message = on_message
+mqttClient = mqtt.Client("CatdoorSubscriber", True, topiclist)
+mqttClient.on_connect = on_connect
+mqttClient.on_message = on_message
 
-client.connect("172.16.0.11")
+mqttClient.connect("172.16.0.11")
           
-client.loop_forever()
+mqttClient.loop_forever()
 
