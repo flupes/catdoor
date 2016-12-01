@@ -99,7 +99,13 @@ Install Paho: https://pypi.python.org/pypi/paho-mqtt
 ```
 sudo pip install paho-mqtt
 ```
-### SMTP server
+
+### Pushbullet Python
+```
+sudo pip install pushbullet.py
+```
+
+### SMTP server (not using, forget about it for now)
 ```
 sudo apt-get install postfix mailutils
 ```
