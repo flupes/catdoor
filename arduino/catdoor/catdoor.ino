@@ -11,12 +11,12 @@
 Adafruit_VCNL4010 proxim_sensor;
 
 #define NB_PROXIM_SAMPLES 20
-#define NB_ANOMALY_COUNTS 15
+#define NB_ANOMALY_COUNTS 9
 
 #define MAX_CLIENT_RETRIES 10
 
-uint16_t proxim_nominal = 1960;
-uint16_t proxim_anomaly = 160;
+uint16_t proxim_nominal = 2000;
+uint16_t proxim_anomaly = 240;
 uint16_t event_count = 0;
 
 uint16_t proxim_samples[NB_PROXIM_SAMPLES];
@@ -38,8 +38,12 @@ void heartbeat() {
 void update() {
   static uint16_t counter = 0;
   static uint16_t index = 0;
+  static uint16_t printer_count = 0;
+
   uint16_t proxim_value = proxim_sensor.readProximity();
+
   if ( proxim_value > proxim_nominal + proxim_anomaly ) {
+    printer_count = 2 * 1000 / 54;    // print 2 seconds of reading
     // integrate the anomaly
     if (event_count < NB_ANOMALY_COUNTS) {
       event_count++;
@@ -53,6 +57,9 @@ void update() {
   } else {
     if ( event_count > 0 ) {
       event_count--;
+    }
+    if ( printer_count > 0) {
+      printer_count--;
     }
     if ( counter == 0 ) {
       proxim_samples[index] = proxim_value;
@@ -74,6 +81,14 @@ void update() {
   if ( counter >= 20 ) {
     counter = 0;
   }
+  // print to serial values around anomaly
+  if ( printer_count > 0) {
+    Serial.print("millis proxim: ");
+    Serial.print(millis());
+    Serial.print(" ");
+    Serial.println(proxim_value);
+  }
+
 }
 
 bool connectClient() {
@@ -194,15 +209,16 @@ void setup() {
 
 void loop() {
   static bool raised = false;
-  static uint8_t counter = 0;
+  static uint16_t counter = 0;
+  static uint16_t hearbeat_period_ticks = 30000 / 54; // average loop period = 54ms
   static unsigned long last_millis = millis();
 
-  // publish heartbeat
   unsigned long now_millis = millis();
   if ( now_millis - last_millis > 50 ) {
     update();
     counter++;
-    if ( counter == 200 ) {
+    if ( counter > hearbeat_period_ticks ) {
+      // publish heartbeat
       heartbeat();
       counter = 0;
     }
