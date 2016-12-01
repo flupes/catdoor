@@ -70,6 +70,11 @@ cd /etc
 sudo mv localtime localtime.org
 sudo ln -s /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
 ```
+### Change the hostname
+```
+sudo vi /etc/hostname
+sudo vi /etc/hosts
+```
 
 ### Install extra packages
 ```
@@ -94,3 +99,15 @@ Install Paho: https://pypi.python.org/pypi/paho-mqtt
 ```
 sudo pip install paho-mqtt
 ```
+### SMTP server
+```
+sudo apt-get install postfix mailutils
+```
+Select:
+ - setup: Internet Site
+ - system mail name: bbb.flupes.org
+
+Edit: `/etc/postfix/main.cf`
+
+Reload: `sudo systemctl restart postfix`
+
