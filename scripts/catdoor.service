@@ -1,0 +1,11 @@
+[Unit]
+Description = start the catdoor service at boot in a tmux session
+After = network.target
+
+[Service]
+Type = forking
+User = debian
+ExecStart = /home/debian/catdoor/scripts/start-catdoor.bash
+
+[Install]
+WantedBy = multi-user.target
