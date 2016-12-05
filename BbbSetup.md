@@ -70,6 +70,12 @@ cd /etc
 sudo mv localtime localtime.org
 sudo ln -s /usr/share/zoneinfo/America/Los_Angeles /etc/localtime
 ```
+
+### Setup ntp
+```
+sudo apt-get install -y ntp
+```
+
 ### Change the hostname
 ```
 sudo vi /etc/hostname
@@ -103,6 +109,15 @@ sudo pip install paho-mqtt
 ### Pushbullet Python
 ```
 sudo pip install pushbullet.py
+```
+
+### Install service
+````
+# go on the script directory
+# make the systemd unit owned by root (otherwise if will not start automatically at boot)
+sudo chown root.root catdoor.service
+# enable using the full path to the unit
+sudo systemctl enable /home/debian/catdoor/scripts/catdoor.service
 ```
 
 ### SMTP server (not using, forget about it for now)
