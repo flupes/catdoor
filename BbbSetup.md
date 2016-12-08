@@ -119,6 +119,10 @@ machine catdoor
 login your_email_address
 password your_pushbullet_password
 ```
+The `.netrc` files should be readable only by the user:
+```
+chmod go-r ~/.netrc
+```
 
 ### Install service
 ````
