@@ -119,16 +119,13 @@ sudo chown root.root catdoor.service
 # enable using the full path to the unit
 sudo systemctl enable /home/debian/catdoor/scripts/catdoor.service
 ```
+### Some info
 
-### SMTP server (not using, forget about it for now)
-```
-sudo apt-get install postfix mailutils
-```
-Select:
- - setup: Internet Site
- - system mail name: bbb.flupes.org
+#### LEDS
+Boot configuration:
+  - USR0 is configured at boot to blink in a heartbeat pattern
+  - USR1 is configured at boot to light during microSD card accesses
+  - USR2 is configured at boot to light during CPU activity
+  - USR3 is configured at boot to light during eMMC accesses
 
-Edit: `/etc/postfix/main.cf`
-
-Reload: `sudo systemctl restart postfix`
-
+http://robotic-controls.com/learn/beaglebone/beaglebone-black-built-leds
