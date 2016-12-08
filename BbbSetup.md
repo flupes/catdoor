@@ -114,7 +114,11 @@ sudo pip install pushbullet.py
 
 ### Install service
 ````
-# go on the script directory
+# from the catdoor directory
+mkdir logs
+cd scripts
+# edit the catdoor.service and start-catdoor.bash files to reflect where
+# the repo has been checked-out
 # make the systemd unit owned by root (otherwise if will not start automatically at boot)
 sudo chown root.root catdoor.service
 # enable using the full path to the unit
