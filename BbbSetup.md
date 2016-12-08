@@ -43,12 +43,12 @@ Inspired from:
   * https://hacks.pmf.io/2015/06/21/securing-the-beaglebone-black/
 
 ```
-sudo apt-get purge xrdp
-sudo apt-get purge bone101
-sudo apt-get purge c9-core-installer
-sudo apt-get purge bb-node-red-installer
-sudo apt-get purge bonescript
-sudo apt-get purge apache2 apache2-bin apache2-data apache2-utils
+#sudo apt-get purge xrdp
+sudo apt-get purge -y bone101
+sudo apt-get purge -y c9-core-installer
+sudo apt-get purge -y bb-node-red-installer
+sudo apt-get purge -y bonescript
+sudo apt-get purge -y apache2 apache2-bin apache2-data apache2-utils
 sudo apt-get autoremove
 ```
 
@@ -80,18 +80,19 @@ sudo apt-get install -y ntp
 ```
 sudo vi /etc/hostname
 sudo vi /etc/hosts
+sudo reboot
 ```
 
 ### Install extra packages
 ```
-emacs24-nox
-byobu
+sudo apt-get install -y emacs24-nox
+sudo apt-get install -y byobu
 ```
 
 ### Secure
 ```
 passwd debian
-passwd root
+sudo passwd root
 ```
 
 ### Configure
