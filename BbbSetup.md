@@ -112,6 +112,14 @@ sudo pip install paho-mqtt
 sudo pip install pushbullet.py
 ```
 
+### Setup pushbullet credentials
+Retrieve your pushbullet password and create a `~/.netrc` file of the sort:
+```
+machine catdoor
+login your_email_address
+password your_pushbullet_password
+```
+
 ### Install service
 ````
 # from the catdoor directory
