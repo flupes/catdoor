@@ -125,7 +125,7 @@ chmod go-r ~/.netrc
 ```
 
 ### Install service
-````
+```
 # from the catdoor directory
 mkdir logs
 cd scripts
@@ -136,6 +136,7 @@ sudo chown root.root catdoor.service
 # enable using the full path to the unit
 sudo systemctl enable /home/debian/catdoor/scripts/catdoor.service
 ```
+
 ### Some info
 
 #### LEDS
