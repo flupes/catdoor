@@ -21,9 +21,9 @@ Burn to SD card using Win32DiskImager (if on Windows…)
 ### Boot from the SD card
 1. Card not powered
 2. Insert SD card
-3. Press the boot button 
-4. Apply power with USB from computer
-5. Let boot
+3. Press the boot button (next to the microSD card) 
+4. Apply power from host computer using mini-USB connector (next to eth)
+5. Let boot (only USR0 LED flashing)
 6. Log on the board: ssh debian@192.168.7.2 (temppwd)
 
 
