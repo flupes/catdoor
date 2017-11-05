@@ -13,7 +13,7 @@ void setup() {
   while (!Serial) {
     ;  // wait for serial port to connect. Needed for native USB port only
   }
-  Serial.println("Testing Accelerometer - Take 4");
+  Serial.println("Testing Accelerometer");
 
   if (!accel_sensor.begin(
           0x18)) {  // change this to 0x19 for alternative i2c address
@@ -38,7 +38,6 @@ void setup() {
 
 void loop() {
   static unsigned long last = millis();
-  static unsigned int counter = 0;
 
   if (ext_int) {
     unsigned long now = millis();
@@ -47,23 +46,18 @@ void loop() {
     // Serial.println("OK");
     Serial.print(accel_sensor.accel[0]);
     Serial.print("\t");
-    Serial.print(accel_sensor.accel[1]);
-    Serial.print("\t");
+    // Serial.print(accel_sensor.accel[1]);
+    // Serial.print("\t");
     Serial.print(accel_sensor.accel[2]);
     Serial.print("\t");
-    Serial.print("maxCount=");
-    Serial.print(accel_sensor.getMaxCount());
-    Serial.print("\t");
-    Serial.print("elapsed=");
-    Serial.print(now - last);
+    // Serial.print("maxCount=");
+    // Serial.print(accel_sensor.getMaxCount());
+    // Serial.print("\t");
+    // Serial.print("elapsed=");
+    // Serial.print(now - last);
     Serial.println();
     last = now;
     ext_int = false;
   }
-  if (counter == 50) {
-    // delay(500);
-    counter = 0;
-  }
-  counter++;
   delay(10);
 }
