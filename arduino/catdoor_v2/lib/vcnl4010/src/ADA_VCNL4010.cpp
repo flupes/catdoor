@@ -26,15 +26,16 @@ boolean ADA_VCNL4010::begin(uint8_t addr) {
   Wire.begin();
 
   uint8_t rev = read8(VCNL4010_PRODUCTID);
-  // Serial.println(rev, HEX);
+  Serial.println(rev, HEX);
   if ((rev & 0xF0) != 0x20) {
     return false;
   }
 
-  setLEDcurrent(20);
-  setFrequency(VCNL4010_390K625);
+  // setLEDcurrent(10); keep the default at startup
+  // setFrequency(VCNL4010_390K625); default frequency is already 390.625KHz
 
-  write8(VCNL4010_INTCONTROL, 0x08);
+  // This enable interupt generation at proximity ready...
+  // write8(VCNL4010_INTCONTROL, VCNL4010_INT_READY);
   return true;
 }
 
@@ -49,6 +50,11 @@ void ADA_VCNL4010::setLEDcurrent(uint8_t c) {
   write8(VCNL4010_IRLED, c);
 }
 
+void ADA_VCNL4010::setProximityRate(vcnl4010_rate r) {
+  uint8_t b = r & 0x08;
+  write8(VCNL4010_PROXRATE, b);
+}
+
 uint8_t ADA_VCNL4010::getLEDcurrent(void) { return read8(VCNL4010_IRLED); }
 
 /**************************************************************************/
@@ -57,12 +63,43 @@ uint8_t ADA_VCNL4010::getLEDcurrent(void) { return read8(VCNL4010_IRLED); }
 */
 /**************************************************************************/
 
-void ADA_VCNL4010::setFrequency(vcnl4010_freq f) {
+void ADA_VCNL4010::setModulatorFrequency(vcnl4010_freq f) {
   uint8_t r = read8(VCNL4010_MODTIMING);
   r &= ~(0b00011000);
   r |= f << 3;
   write8(VCNL4010_MODTIMING, r);
 }
+
+void ADA_VCNL4010::setLowThreshold(uint16_t low) {
+  write8(0x8A, (low & 0xff00) >> 8);
+  write8(0x8B, low & 0xff);
+}
+
+void ADA_VCNL4010::setHighThreshold(uint16_t high) {
+  write8(0x8C, (high & 0xff00) >> 8);
+  write8(0x8D, high & 0xff);
+}
+
+void ADA_VCNL4010::setProximThresholdInterrupt(uint8_t count) {
+  uint8_t v = (count & 0x07) << 5;
+  v |= 0x02;
+  write8(VCNL4010_INTCONTROL, v);
+  delay(1);
+}
+
+void ADA_VCNL4010::setAlsThresholdInterrupt(uint8_t count) {
+  uint8_t v = (count & 0x07) << 5;
+  v |= 0x03;
+  write8(VCNL4010_INTCONTROL, v);
+}
+
+void ADA_VCNL4010::setProximReadyInterrupt() {
+  write8(VCNL4010_INTCONTROL, 0x08);
+}
+
+void ADA_VCNL4010::setAlsReadyInterrupt() { write8(VCNL4010_INTCONTROL, 0x04); }
+
+uint8_t ADA_VCNL4010::readInterruptStatus() { return read8(VCNL4010_INTSTAT); }
 
 /**************************************************************************/
 /*!
@@ -112,8 +149,6 @@ uint16_t ADA_VCNL4010::readAmbient(void) {
 
 // Read 1 byte from the VCNL4000 at 'address'
 uint8_t ADA_VCNL4010::read8(uint8_t address) {
-  uint8_t data;
-
   Wire.beginTransmission(_i2caddr);
   Wire.write(address);
   Wire.endTransmission();

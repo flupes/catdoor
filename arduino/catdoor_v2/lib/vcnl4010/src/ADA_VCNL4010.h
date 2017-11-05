@@ -43,6 +43,17 @@ typedef enum {
   VCNL4010_390K625 = 0,
 } vcnl4010_freq;
 
+typedef enum {
+  VCNL4010_1_95Hz = 0,
+  VCNL4010_3_90625Hz = 1,
+  VCNL4010_7_815Hz = 2,
+  VCNL4010_16_625Hz = 3,
+  VCNL4010_31_25Hz = 4,
+  VCNL4010_62_2Hz = 5,
+  VCNL4010_125Hz = 6,
+  VCNL4010_250Hz = 7
+} vcnl4010_rate;
+
 #define VCNL4010_MEASUREAMBIENT 0x10
 #define VCNL4010_MEASUREPROXIMITY 0x08
 #define VCNL4010_AMBIENTREADY 0x40
@@ -56,11 +67,20 @@ class ADA_VCNL4010 {
   uint8_t getLEDcurrent(void);
   void setLEDcurrent(uint8_t c);
 
-  void setFrequency(vcnl4010_freq f);
+  void setModulatorFrequency(vcnl4010_freq f);
+  void setProximityRate(vcnl4010_rate r);
+  void setLowThreshold(uint16_t low);
+  void setHighThreshold(uint16_t high);
+  void setProximThresholdInterrupt(uint8_t count);
+  void setAlsThresholdInterrupt(uint8_t count);
+  void setProximReadyInterrupt();
+  void setAlsReadyInterrupt();
+
   uint16_t readProximity(void);
   uint16_t readAmbient(void);
+  uint8_t readInterruptStatus(void);
 
- private:
+ //private:
   void write8(uint8_t address, uint8_t data);
   uint16_t read16(uint8_t address);
   uint8_t read8(uint8_t address);

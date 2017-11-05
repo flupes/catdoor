@@ -3,10 +3,10 @@
 
 #include "m0_hf_pwm.h"
 
-#define TEST_ACCEL 1
+// #define TEST_ACCEL 1
 #define TEST_PROXIM 1
-#define TEST_PWM 1
-//#define TEST_SOLENOIDS 1
+//#define TEST_PWM 1
+// #define TEST_SOLENOIDS 1
 
 #ifdef TEST_ACCEL
 #define USE_SERIAL 1
@@ -31,9 +31,13 @@
 ADA_LIS3DH accel_sensor = ADA_LIS3DH();
 ADA_VCNL4010 proxim_sensor = ADA_VCNL4010();
 
+bool ext_int = false;
+
+void proximThreshold() { ext_int = true; }
+
 void setup() {
 #ifdef USE_SERIAL
-  Serial.begin(9600);
+  Serial.begin(115200);
   while (!Serial) {
     ;  // wait for serial port to connect. Needed for native USB port only
   }
@@ -59,6 +63,28 @@ void setup() {
       ;
   }
   Serial.println("Found VCNL4010");
+  pinMode(A1, INPUT_PULLUP);
+  attachInterrupt(A1, proximThreshold, FALLING);
+  delay(1);
+  proxim_sensor.setModulatorFrequency(VCNL4010_390K625);
+  proxim_sensor.setLEDcurrent(16);
+  // proxim_sensor.setProximityRate(VCNL4010_125Hz);
+  proxim_sensor.write8(0x80, 0);
+  delay(1);
+  proxim_sensor.write8(0x82, 4);
+  delay(1);
+  proxim_sensor.setProximThresholdInterrupt(3);
+  proxim_sensor.setLowThreshold(0);
+  proxim_sensor.setHighThreshold(2200);
+  // Serial.print("Interrupt Control = ");
+  // Serial.println(proxim_sensor.read8(0x89));
+  // Serial.print("Low Threshold = ");
+  // Serial.println(proxim_sensor.read16(0x8A));
+  // Serial.print("High Threshold = ");
+  // Serial.println(proxim_sensor.read16(0x8C));
+  // proxim_sensor.write8(VCNL4010_INTSTAT, 0x0);
+  proxim_sensor.write8(VCNL4010_COMMAND, 0x03);
+  delay(1);
 #endif
 
   pwm_configure();
@@ -79,18 +105,38 @@ void loop() {
   Serial.print(accel_sensor.accel[2]);
   Serial.print("\t");
   Serial.print(accel_sensor.getMaxCount());
-  Serial.print("\t");
+  Serial.print("\n");
+  delay(200);
 #endif
 
 #ifdef TEST_PROXIM
-  Serial.print(proxim_sensor.readAmbient());
-  Serial.print("\t");
-  Serial.print(proxim_sensor.readProximity());
+  // Serial.print(proxim_sensor.readAmbient());
+  // Serial.print("\t");
+  // Serial.print(proxim_sensor.readProximity());
+  if (ext_int) {
+    uint8_t s = proxim_sensor.readInterruptStatus();
+    Serial.print(s);
+    delay(1);
+    proxim_sensor.write8(VCNL4010_INTSTAT, s);
+    if (s == 1) {
+      proxim_sensor.setLowThreshold(2100);
+      proxim_sensor.setHighThreshold(5000);
+    } else {
+      proxim_sensor.setLowThreshold(0);
+      proxim_sensor.setHighThreshold(2100);
+    }
+    delay(1);
+    proxim_sensor.write8(VCNL4010_COMMAND, 0x03);
+    delay(1);
+    Serial.println(" }");
+    ext_int = false;
+  }
+  delay(100);
 #endif
 
 #ifdef USE_SERIAL
-  Serial.println();
-  delay(200);
+// Serial.println();
+// delay(10);
 #endif
 
 #ifdef TEST_PWM
