@@ -109,16 +109,19 @@ void pwm_configure() {
   // The CCBx register value corresponds to the pulsewidth. Default is set to
   // 50%
 
-  REG_TCC0_CC1 =
-      256;  // Set the duty cycle of the PWM on TCC0 W[2] to 50% (for D10)
+  REG_TCC0_CC1 = 0;
+  // Set the duty cycle of the PWM on TCC0 W[2] to 50% (for D10)
+  // REG_TCC0_CC1 = 256;
   while (TCC0->SYNCBUSY.bit.CC1)
     ;
-  REG_TCC0_CC2 =
-      256;  // Set the duty cycle of the PWM on TCC0 W[3] to 50% (for D12)
+  REG_TCC0_CC2 = 0;
+  // Set the duty cycle of the PWM on TCC0 W[3] to 50% (for D12)
+  // REG_TCC0_CC2 = 256;
   while (TCC0->SYNCBUSY.bit.CC2)
     ;
 
-  REG_TCC2_CC0 = 256;
+  REG_TCC2_CC0 = 0;
+  // REG_TCC2_CC0 = 256;
   while (TCC2->SYNCBUSY.bit.CC0)
     ;
 
