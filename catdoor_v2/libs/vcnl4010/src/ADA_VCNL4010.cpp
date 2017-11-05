@@ -26,7 +26,7 @@ boolean ADA_VCNL4010::begin(uint8_t addr) {
   Wire.begin();
 
   uint8_t rev = read8(VCNL4010_PRODUCTID);
-  Serial.println(rev, HEX);
+  // Serial.println(rev, HEX);
   if ((rev & 0xF0) != 0x20) {
     return false;
   }
@@ -98,7 +98,6 @@ void ADA_VCNL4010::setAlsThresholdInterrupt(uint8_t count) {
 
 void ADA_VCNL4010::activateProximityThresholdInterrupt() {
   write8(VCNL4010_COMMAND, 0x03);
-  delay(1);
 }
 
 void ADA_VCNL4010::setProximReadyInterrupt() {
