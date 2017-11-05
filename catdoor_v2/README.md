@@ -8,3 +8,15 @@ catdoor_v2/
 ├── libs           libraries
 └── tests          test programs (development purpose)
 ```                  
+
+Compile with:
+
+    pio run -v
+
+Upload with:
+
+    pio run -v --target upload
+
+Serial Monitor:
+
+    pio device monitor --port COM29 --baud 115200
