@@ -1,28 +1,26 @@
-// #define USE_SERIAL 1
-#include "catdoor.h"
+#define USE_SERIAL 1
+
+#include "accel.h"
+#include "ledctrl.h"
+#include "proxim.h"
 #include "rtc.h"
+#include "solenoids.h"
+#include "utils.h"
 
-#define USE_ACCEL 1
-#define USE_PROXIM 1
+static const HourMinute morning(7, 00);
+static const HourMinute evening(16, 30);
 
-static const HourMinute morning(8, 30);
-static const HourMinute evening(19, 0);
-
-Solenoids *Solenoids::instance = 0;
 // global objects...
 CatTime rtc;
+Accel accel_sensor;
+Proxim proxim_sensor;
+Solenoids sol_actuators;
 LedCtrl status_led;
-Accel accel_sensor = Accel();
-Proxim proxim_sensor = Proxim();
-Solenoids sol_actuators = Solenoids();
 
 // interupts function prototypes
-void proximThreshold() { proxim_sensor.callback(); }
+void proximThreshold() { proxim_sensor.new_state = true; }
 
-void accelReady() {
-  // PRINTLN("DRDY");
-  accel_sensor.callback();
-}
+void accelReady() { accel_sensor.data_ready = true; }
 
 void setup() {
 #ifdef USE_SERIAL
@@ -30,16 +28,12 @@ void setup() {
   while (!Serial) {
     ;  // wait for serial port to connect. Needed for native USB port only
   }
+  Serial.println("Starting Catdoor app...");
 #endif
 
-  if (!rtc.begin()) {
-    Serial.println("Couldn't find RTC!");
-    while (1)
-      ;
-  }
-
-#ifdef USE_ACCEL
+  //
   // Accelerometer setup
+  //
   if (!accel_sensor.begin(0x18)) {
     PRINTLN("Couldnt start accelerometer!");
     while (1)
@@ -56,10 +50,10 @@ void setup() {
   attachInterrupt(A2, accelReady, RISING);
   delay(1);             // for some reason, this delay is CRITICAL!
   accel_sensor.read();  // read reset the signal --> start interrupts
-#endif
 
-#ifdef USE_PROXIM
+  //
   // Proximity sensor setup
+  //
   if (!proxim_sensor.begin()) {
     PRINTLN("Proximity sensor not found!");
     while (1)
@@ -81,10 +75,20 @@ void setup() {
   proxim_sensor.setHighThreshold(Proxim::THRESHOLD);
   proxim_sensor.activateProximityThresholdInterrupt();
 
-  // start considering we are in the dark
+  // RTC
+  if (!rtc.begin()) {
+    PRINTLN("Couldn't find RTC!");
+    while (1)
+      ;
+  }
+
+  // HF PWM
+  pwm_configure();
+  // status_led.pulse(5000);
   status_led.flash(80, 2900);
-#endif
 }
+
+static const unsigned long PERIOD = 20;
 
 void loop() {
   static bool cat_exiting = false;
@@ -111,33 +115,49 @@ void loop() {
     last_time = now;
   }
 
-  if (proxim_sensor.new_state) {
-    proxim_sensor.process();
-    if (daylight && proxim_sensor.state == Proxim::CAT &&
-        accel_sensor.state == Accel::CLOSED) {
-      sol_actuators.open();
+  // Process accelerometer
+  if (accel_sensor.data_ready) {
+    accel_sensor.process();
+    if (accel_sensor.new_state) {
+      PRINTLN(ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state]);
+      accel_sensor.new_state = false;
     }
   }
 
-  if (accel_sensor.new_state) {
-    accel_sensor.process();
+  // Check if cat is in front of door
+  if (proxim_sensor.new_state) {
+    proxim_sensor.process();
+    if (proxim_sensor.state == Proxim::CAT) {
+      PRINTLN("CAT");
+      if (daylight && accel_sensor.state == Accel::CLOSED) {
+        // Retract the door locks!
+        sol_actuators.open();
+      }
+    } else {
+      PRINTLN("CLEAR");
+    }
   }
 
+  // Mark that cat is going out (to release the solenoids later)
   if (sol_actuators.state == Solenoids::ON &&
       accel_sensor.state == Accel::OPEN_OUT) {
     cat_exiting = true;
   }
+
+  // Release solenoids if cat finished exiting
   if (cat_exiting && accel_sensor.state == Accel::CLOSED &&
       sol_actuators.state == Solenoids::ON) {
     sol_actuators.release();
     cat_exiting = false;
   }
 
+  // Detect jammed condition and try to resolve it
   if (accel_sensor.state == Accel::JAMMED &&
       sol_actuators.state == Solenoids::OFF) {
     sol_actuators.open(true);
     action_time = millis();
   }
+  // Release solenoids after an un-jamming operation
   if (accel_sensor.state == Accel::JAMMED &&
       sol_actuators.state == Solenoids::ON) {
     if ((millis() - action_time) > 2000) {
@@ -145,9 +165,12 @@ void loop() {
     }
   }
 
+  // Go through the solenoid state machine
   sol_actuators.process();
 
+  // Update status LED (flash or pulse)
   status_led.update();
 
-  delay(20);
+  // Loop is variable time, but we do not really care...
+  delay(PERIOD);
 }
