@@ -18,7 +18,7 @@ void setup() {
     while (1)
       ;
   }
-  Serial.println("Found VCNL4010 - Take 3");
+  Serial.println("Found VCNL4010");
 
   pinMode(A1, INPUT_PULLUP);
   attachInterrupt(A1, proximThreshold, FALLING);
@@ -42,25 +42,32 @@ void setup() {
 }
 
 void loop() {
+  static int counter = 0;
   // Serial.print(proxim_sensor.readAmbient());
   // Serial.print("\t");
-  // Serial.print(proxim_sensor.readProximity());
+  // if (counter == 20) {
+  //   Serial.println(proxim_sensor.readProximity());
+  //   counter = 0;
+  // }
+  counter++;
   if (ext_int) {
     uint8_t s = proxim_sensor.readInterruptStatus();
     delay(1);
     Serial.print(s);
+    Serial.print(" - ");
+    Serial.print(proxim_sensor.readProximity());
     proxim_sensor.clearInterrupt(s);
     if (s == 1) {
       proxim_sensor.setLowThreshold(2100);
-      proxim_sensor.setHighThreshold(5000);
+      proxim_sensor.setHighThreshold(65535);
     } else {
       proxim_sensor.setLowThreshold(0);
-      proxim_sensor.setHighThreshold(2100);
+      proxim_sensor.setHighThreshold(2200);
     }
     delay(1);
     proxim_sensor.activateProximityThresholdInterrupt();
     Serial.println();
     ext_int = false;
   }
-  delay(100);
+  delay(20);
 }
