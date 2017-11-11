@@ -1,17 +1,15 @@
 #define USE_SERIAL 1
 
+#include "RTClib.h"
 #include "accel.h"
+#include "daytimes.h"
 #include "ledctrl.h"
 #include "proxim.h"
-#include "rtc.h"
 #include "solenoids.h"
 #include "utils.h"
 
-static const HourMinute morning(7, 00);
-static const HourMinute evening(16, 30);
-
 // global objects...
-CatTime rtc;
+RTC_DS3231 rtc;
 Accel accel_sensor;
 Proxim proxim_sensor;
 Solenoids sol_actuators;
@@ -84,8 +82,9 @@ void setup() {
 
   // HF PWM
   pwm_configure();
-  // status_led.pulse(5000);
-  status_led.flash(80, 2900);
+
+  // start in unkown state
+  status_led.flash(300, 600);
 }
 
 static const unsigned long PERIOD = 20;
@@ -97,21 +96,28 @@ void loop() {
   static unsigned long action_time = millis();
 
   unsigned long now = millis();
-  if ((now - last_time) > 10 * 1000) {
-    // we are up to the minute
-    HourMinute lt = rtc.localTime();
-    if (lt > morning && lt < evening) {
+  if ((now - last_time) > 30 * 1000) {
+    // we are up to the half minute
+    DateTime utc = rtc.now();
+    DateTime local = utc.getLocalTime(TIME_ZONE_OFFSET);
+    uint16_t day = local.yDay();
+    if (day == 366) day = 1;  // We will be one day offset for all leap years...
+    DateTime sunrise(local.year(), local.month(), local.day(),
+                     sunset_sunrise_times[day - 1][0],
+                     sunset_sunrise_times[day - 1][1], 0, TIME_ZONE_OFFSET);
+    DateTime sunset(local.year(), local.month(), local.day(),
+                    sunset_sunrise_times[day - 1][2],
+                    sunset_sunrise_times[day - 1][3], 0, TIME_ZONE_OFFSET);
+
+    if (sunrise < local && local < sunset) {
       if (!daylight) {
-        // PRINTLN("PULSE");
         daylight = true;
         status_led.pulse(5000);
       }
     } else {
-      // PRINTLN("FLASH");
       daylight = false;
       status_led.flash(80, 2900);
     }
-    // PRINTLN(daylight ? "DAY" : "DARK");
     last_time = now;
   }
 
@@ -171,6 +177,6 @@ void loop() {
   // Update status LED (flash or pulse)
   status_led.update();
 
-  // Loop is variable time, but we do not really care...
+  // Loop is variable period, but we do not really care...
   delay(PERIOD);
 }
