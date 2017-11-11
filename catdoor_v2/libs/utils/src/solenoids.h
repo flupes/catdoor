@@ -1,5 +1,5 @@
-#ifndef SOLENOIDS_H
-#define SOLENOIDS_H
+#ifndef _CATDOOR_SOLENOIDS_H_
+#define _CATDOOR_SOLENOIDS_H_
 
 #include "m0_hf_pwm.h"
 

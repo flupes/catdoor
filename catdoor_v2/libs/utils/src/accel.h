@@ -1,5 +1,5 @@
-#ifndef ACCEL_H
-#define ACCEL_H
+#ifndef _CATDOOR_ACCEL_H_
+#define _CATDOOR_ACCEL_H_
 
 #include "ADA_LIS3DH.h"
 #include "utils.h"

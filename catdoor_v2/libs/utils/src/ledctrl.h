@@ -1,5 +1,5 @@
-#ifndef LEDCTRL_H
-#define LEDCTRL_H
+#ifndef _CATDOOR_LEDCTRL_H_
+#define _CATDOOR_LEDCTRL_H_
 
 #include "m0_hf_pwm.h"
 

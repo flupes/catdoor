@@ -1,5 +1,5 @@
-#ifndef PROXIM_H
-#define PROXIM_H
+#ifndef _CATDOOR_PROXIM_H_
+#define _CATDOOR_PROXIM_H_
 
 #include "ADA_VCNL4010.h"
 #include "utils.h"
