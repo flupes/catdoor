@@ -16,7 +16,7 @@ class Proxim : public ADA_VCNL4010 {
 
   void process() {
     istatus = readInterruptStatus();
-    PRINTLN(istatus);
+    // PRINTLN(istatus);
     clearInterrupt(istatus);
     // PRINTLN(readProximity());
     if (istatus == 1) {
