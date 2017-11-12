@@ -1,5 +1,5 @@
-#ifndef SOLENOIDS_H
-#define SOLENOIDS_H
+#ifndef _CATDOOR_SOLENOIDS_H_
+#define _CATDOOR_SOLENOIDS_H_
 
 #include "m0_hf_pwm.h"
 
@@ -7,8 +7,8 @@ class Solenoids {
  public:
   static const uint8_t PIN_A = 5;
   static const uint8_t PIN_B = 6;
-  static const unsigned long MAX_ON_DURATION = 12000;
-  static const unsigned long COOLDOWN_DURATION = 16000;
+  static const unsigned long MAX_ON_DURATION = 20000;
+  static const unsigned long COOLDOWN_DURATION = 20000;
 
   typedef enum {
     OFF = 0,
@@ -45,8 +45,11 @@ class Solenoids {
     state = OFF;
   }
 
-  void process() {
+  // Go through the solenoids state machine
+  // and return true if solenoids were released because a hot condition
+  bool process() {
     unsigned long now = millis();
+    bool hot_release = false;
     if (state == MAX_A) {
       if ((now - start_time) > factor * 120) {
         pwm_set(PIN_A, 200);
@@ -68,6 +71,7 @@ class Solenoids {
     if (state == ON) {
       if ((now - start_time) > MAX_ON_DURATION) {
         release();
+        hot_release = true;
         state = HOT;
         stop_time = now;
       }
@@ -79,6 +83,7 @@ class Solenoids {
         state = OFF;
       }
     }
+    return hot_release;
   }
 };
 

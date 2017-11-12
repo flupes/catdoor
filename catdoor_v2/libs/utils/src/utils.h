@@ -1,5 +1,5 @@
-#ifndef CATDOOR_H
-#define CATDOOR_H
+#ifndef _CATDOOR_UTILS_H_
+#define _CATDOOR_UTILS_H_
 
 #ifdef USE_SERIAL
 #define PRINT(x) Serial.print(x)
@@ -13,7 +13,7 @@ class Timing {
   uint16_t nsamples;
   uint16_t counter;
   unsigned long accumulation;
-  unsigned long startus;
+  unsigned long start_us;
   char name[8];
 
  public:
@@ -26,12 +26,13 @@ class Timing {
   }
   void start() {
 #ifdef USE_SERIAL
-    startus = micros();
+    start_us = micros();
 #endif
   }
+
   void stop() {
 #ifdef USE_SERIAL
-    accumulation += (micros() - startus);
+    accumulation += (micros() - start_us);
     counter++;
     if (counter >= nsamples) {
       PRINT("Avergage (n=");

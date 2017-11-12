@@ -1,5 +1,5 @@
-#ifndef LEDCTRL_H
-#define LEDCTRL_H
+#ifndef _CATDOOR_LEDCTRL_H_
+#define _CATDOOR_LEDCTRL_H_
 
 #include "m0_hf_pwm.h"
 
@@ -57,7 +57,7 @@ class LedCtrl {
     if (mode == PULSATING) {
       unsigned long elapsed = now - last;
       uint16_t v = (uint16_t)(
-          256 * (1.0 + sin(2.0 * 3.141592 * (float)elapsed / period)));
+          32 + 224 * (1.0 + sin(2.0 * 3.141592 * (float)elapsed / period)));
       pwm_set(PIN_L, v);
     }
   }
