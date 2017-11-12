@@ -4,20 +4,18 @@
 #include "ADA_LIS3DH.h"
 #include "utils.h"
 
-#ifdef USE_SERIAL
 static const char *ACCEL_STATES_NAMES[] = {"CLOSED", "OPEN_IN", "OPEN_OUT",
                                            "JAMMED", "AJAR_IN"};
-#endif
 
 class Accel : public ADA_LIS3DH {
  public:
   static const int16_t V_CLOSED = -15900;
-  static const int16_t H_CLOSED = 400;
+  static const int16_t H_CLOSED = 500;
   static const int16_t V_JAMMED = -15500;
   static const int16_t H_JAMMED = 3000;
   static const int16_t V_OPENED = -13000;
   static const int16_t H_OPENED = 10000;
-  static const uint8_t JAMCOUNTS = 12;  // 1.2s at 10Hz
+  static const uint8_t JAMCOUNTS = 10;  // 1.2s at 10Hz
   // Horizontal:
   // Zaccel > 0 --> open IN
   // Zaccel < 0 --> open OUT
@@ -59,6 +57,7 @@ class Accel : public ADA_LIS3DH {
       if (state != CLOSED) {
         change_state(CLOSED);
       }
+      if (jamcounter > 0) jamcounter--;
       return;
     }
     if (accel[0] > V_OPENED) {
@@ -66,12 +65,14 @@ class Accel : public ADA_LIS3DH {
         if (state != OPEN_IN) {
           change_state(OPEN_IN);
         }
+        if (jamcounter > 0) jamcounter--;
         return;
       }
       if (accel[2] < -H_OPENED) {
         if (state != OPEN_OUT) {
           change_state(OPEN_OUT);
         }
+        if (jamcounter > 0) jamcounter--;
         return;
       }
     }
@@ -79,18 +80,26 @@ class Accel : public ADA_LIS3DH {
       if (state != AJAR_IN) {
         change_state(AJAR_IN);
       }
+      if (jamcounter > 0) jamcounter--;
       return;
     }
-    if (accel[0] < V_JAMMED && accel[2] < H_CLOSED && accel[2] > -H_JAMMED) {
+    if (accel[0] < V_JAMMED && accel[2] < -H_CLOSED && accel[2] > -H_JAMMED) {
       // only consider jamed state when door is out
+      // PRINT("accel[0]=");
+      // PRINT(accel[0]);
+      // PRINT(" / accel[2]=");
+      // PRINTLN(accel[2]);
       if (state != JAMMED) {
         jamcounter++;
         // Make sure we are totally jammed, and not trough a transition
         if (jamcounter > JAMCOUNTS) {
+          // PRINTLN("detected JAM");
           change_state(JAMMED);
         }
       }
       return;
+    } else {
+      if (jamcounter > 0) jamcounter--;
     }
     // PRINTLN("Undefined angle: no state change");
   }
