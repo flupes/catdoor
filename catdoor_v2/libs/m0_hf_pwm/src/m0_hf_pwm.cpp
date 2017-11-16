@@ -136,6 +136,42 @@ void pwm_configure() {
                     TCC_CTRLA_ENABLE;           // Enable the TCC0 output
   while (TCC2->SYNCBUSY.bit.ENABLE)
     ;  // Wait for synchronization
+
+// In addition use the same clock to trigger an ISR using TC4
+// http://forum.arduino.cc/index.php?topic=425385.0
+#if 1
+  // Feed GCLK4 to TC4 and TC5
+  REG_GCLK_CLKCTRL = GCLK_CLKCTRL_CLKEN |      // Enable GCLK4 to TC4 and TC5
+                     GCLK_CLKCTRL_GEN_GCLK4 |  // Select GCLK4
+                     GCLK_CLKCTRL_ID_TC4_TC5;  // Feed the GCLK4 to TC4 and TC5
+  while (GCLK->STATUS.bit.SYNCBUSY)
+    ;  // Wait for synchronization
+
+  // REG_TC4_COUNT16_CC0 = 0xB71A;  // Set the TC4 CC0 register as the TOP value
+  // in match frequency mode --> 1s per to CC0
+  REG_TC4_COUNT16_CC0 = 0x0249;  // Configure to trigger at every 20ms
+  while (TC4->COUNT16.STATUS.bit.SYNCBUSY)
+    ;  // Wait for synchronization
+
+  // NVIC_DisableIRQ(TC4_IRQn);
+  // NVIC_ClearPendingIRQ(TC4_IRQn);
+  NVIC_SetPriority(TC4_IRQn, 0);  // Set the Nested Vector Interrupt Controller
+                                  // (NVIC) priority for TC4 to 0 (highest)
+  NVIC_EnableIRQ(
+      TC4_IRQn);  // Connect TC4 to Nested Vector Interrupt Controller (NVIC)
+
+  REG_TC4_INTFLAG |= TC_INTFLAG_OVF;   // Clear the interrupt flags
+  REG_TC4_INTENSET = TC_INTENSET_OVF;  // Enable TC4 interrupts
+  // REG_TC4_INTENCLR = TC_INTENCLR_OVF;          // Disable TC4 interrupts
+
+  REG_TC4_CTRLA |= TC_CTRLA_PRESCALER_DIV1024 |  // Set prescaler to 1024,
+                                                 // 48MHz/1024 = 46.875kHz
+                   TC_CTRLA_WAVEGEN_MFRQ |       // Put the timer TC4 into match
+                                                 // frequency (MFRQ) mode
+                   TC_CTRLA_ENABLE;              // Enable TC4
+  while (TC4->COUNT16.STATUS.bit.SYNCBUSY)
+    ;  // Wait for synchronization
+#endif
 }
 
 bool pwm_set(uint8_t pin, uint32_t width) {
