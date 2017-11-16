@@ -1,21 +1,18 @@
 #define USE_SERIAL 1
 
+#include "RTClib.h"
 #include "accel.h"
 #include "ledctrl.h"
 #include "proxim.h"
-#include "rtc.h"
 #include "utils.h"
 
 #define USE_RTC
 #define USE_ACCEL 1
 #define USE_PROXIM 1
 
-static const HourMinute morning(8, 30);
-static const HourMinute evening(20, 45);
-
 // global objects...
 #ifdef USE_RTC
-CatTime rtc;
+RTC_DS3231 rtc;
 #endif
 #ifdef USE_ACCEL
 Accel accel_sensor = Accel();
@@ -135,12 +132,13 @@ void loop() {
 
   if ((start - last_time) > 60 * 1000000) {
     rtc_stats.start();
-    HourMinute hm = rtc.localTime();
+    DateTime utc_time = rtc.now();
+    DateTime local_time = utc_time.getLocalTime(-8);
     rtc_stats.stop();
     PRINT("Current Time = ");
-    PRINT(hm.hour);
+    PRINT(local_time.hour());
     PRINT(":");
-    PRINTLN(hm.minute);
+    PRINTLN(local_time.minute());
     last_time = start;
   }
 

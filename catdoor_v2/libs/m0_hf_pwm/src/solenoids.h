@@ -7,8 +7,8 @@ class Solenoids {
  public:
   static const uint8_t PIN_A = 5;
   static const uint8_t PIN_B = 6;
-  static const unsigned long MAX_ON_DURATION = 20000;
-  static const unsigned long COOLDOWN_DURATION = 20000;
+  static const unsigned long MAX_ON_DURATION = 40000;
+  static const unsigned long COOLDOWN_DURATION = 40000;
 
   typedef enum {
     OFF = 0,
@@ -28,7 +28,7 @@ class Solenoids {
     // PRINT("Solenoids state = ");
     // PRINTLN(state);
     if (boost) {
-      factor = 4;
+      factor = 3;
     } else {
       factor = 1;
     }
@@ -52,7 +52,7 @@ class Solenoids {
     bool hot_release = false;
     if (state == MAX_A) {
       if ((now - start_time) > factor * 120) {
-        pwm_set(PIN_A, 200);
+        pwm_set(PIN_A, 250);
         state = STAY_A;
       }
     }
@@ -64,7 +64,7 @@ class Solenoids {
     }
     if (state == MAX_B) {
       if ((now - start_time) > factor * 300) {
-        pwm_set(PIN_B, 200);
+        pwm_set(PIN_B, 250);
         state = ON;
       }
     }

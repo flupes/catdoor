@@ -1,5 +1,5 @@
-// Configure two pin (D5 + D6) on a TCC timer on the Adafruit Feather M0
-// (SAMD21) for fast PWM (higher frequency than a cat can perceive > 73KHz,
+// Configure three pins (D5, D6 and D11) on a TCC timer on the Adafruit Feather
+// M0 (SAMD21) for fast PWM (higher frequency than a cat can perceive > 73KHz,
 // otherwise the solenoid is singing and the catdoor assembly resonate very
 // loudly;-)
 
@@ -12,7 +12,7 @@
 
 #include "Arduino.h"
 
-static const unsigned char g_gen_clock = 4;
+static const unsigned char g_gen_clock_pwm = 4;
 static const uint32_t g_max_per = 512;
 
 uint32_t pwm_get_max() { return g_max_per; }
@@ -21,14 +21,14 @@ void pwm_configure() {
   REG_GCLK_GENDIV =
       GCLK_GENDIV_DIV(
           1) |  // Divide the 48MHz clock source by divisor 1: 48MHz/4=12MHz
-      GCLK_GENDIV_ID(g_gen_clock);  // Select Generic Clock (GCLK) 4
+      GCLK_GENDIV_ID(g_gen_clock_pwm);  // Select Generic Clock (GCLK) 4
   while (GCLK->STATUS.bit.SYNCBUSY)
     ;  // Wait for synchronization
 
   REG_GCLK_GENCTRL = GCLK_GENCTRL_IDC |  // Set the duty cycle to 50/50 HIGH/LOW
                      GCLK_GENCTRL_GENEN |        // Enable GCLK4
                      GCLK_GENCTRL_SRC_DFLL48M |  // Set the 48MHz clock source
-                     GCLK_GENCTRL_ID(g_gen_clock);  // Select GCLK4
+                     GCLK_GENCTRL_ID(g_gen_clock_pwm);  // Select GCLK4
   while (GCLK->STATUS.bit.SYNCBUSY)
     ;  // Wait for synchronization
 

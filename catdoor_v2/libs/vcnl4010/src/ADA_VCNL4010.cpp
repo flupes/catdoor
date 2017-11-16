@@ -1,5 +1,3 @@
-#include "Arduino.h"
-
 #ifdef __AVR_ATtiny85__
 #include "TinyWireM.h"
 #define Wire TinyWireM
@@ -7,6 +5,7 @@
 #include <Wire.h>
 #endif
 
+#include <Wire.h>
 #include "ADA_VCNL4010.h"
 
 /**************************************************************************/

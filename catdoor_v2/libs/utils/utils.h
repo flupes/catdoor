@@ -1,6 +1,8 @@
 #ifndef _CATDOOR_UTILS_H_
 #define _CATDOOR_UTILS_H_
 
+// #define USE_SERIAL
+
 #ifdef USE_SERIAL
 #define PRINT(x) Serial.print(x)
 #define PRINTLN(x) Serial.println(x)

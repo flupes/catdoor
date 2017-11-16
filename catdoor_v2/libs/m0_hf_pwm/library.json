@@ -1,0 +1,18 @@
+{
+    "name": "M0_HF_PWM",
+    "keywords": "M0 HF PWM",
+    "description": "High Frequency PWM generation on SAMD21 (M0)",
+    "authors":
+    {
+        "name": "Lorenzo Flueckiger",
+        "email": "lorenzo.flueckiger@gmail.com",
+        "url": "https://github.com/flupes/catdoor"
+    },
+    "repository":
+    {
+        "type": "git",
+        "url": "https://github.com/flupes/catdoor"
+    },
+    "frameworks": "arduino",
+    "platforms": "atmelsam"
+}
