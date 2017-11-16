@@ -1,40 +1,17 @@
-#define USE_SERIAL 1
-
 #include "RTClib.h"
 #include "daytimes.h"
 #include "ledctrl.h"
 #include "mqtt_client.h"
 #include "netcfg.h"
 #include "utils.h"
+#include "watchdog_timer.h"
 
 RTC_DS3231 rtc;
 char buffer[64];
 
 LedCtrl status_led;
 WiFiClient wifi_client;
-MQTT_Client mqtt_client(wifi_client);
-
-void connect_wifi(WiFiClient& wifi_client, LedCtrl& status_led) {
-  static uint8_t counter = 0;
-  int status = WL_IDLE_STATUS;  // the WiFi radio's status
-  // attempt to connect to WiFi network:
-  while (status != WL_CONNECTED) {
-    if (counter == 0) {
-      PRINT("Attempting to connect to WEP network, SSID: ");
-      PRINTLN(MY_WIFI_SSID);
-      status = WiFi.begin(MY_WIFI_SSID, MY_WIFI_PASS);
-      counter = 200;
-    }
-    counter--;
-    status_led.update();
-    delay(50);
-  }
-#ifdef USE_SERIAL
-  PRINT("IP address: ");
-  IPAddress ip = WiFi.localIP();
-  PRINTLN(ip);
-#endif
-}
+MQTT_Client mqtt_client(wifi_client, status_led);
 
 void setup() {
   Serial.begin(115200);
@@ -50,8 +27,10 @@ void setup() {
   // HF PWM
   pwm_configure();
 
+  wdt_configure(11);
+
   // start in unkown state
-  status_led.flash(200, 100);
+  status_led.warning();
 
   // Configure pins for Adafruit ATWINC1500 Feather
   WiFi.setPins(8, 7, 4, 2);
@@ -61,9 +40,11 @@ void setup() {
     PRINTLN("WiFi shield not present");
     return;  // don't continue
   }
-
-  connect_wifi(wifi_client, status_led);
+  mqtt_client.connect_wifi(MY_WIFI_SSID, MY_WIFI_PASS);
   mqtt_client.setServer(MQTT_SERVER, MQTT_PORT);
+  mqtt_client.connect_client();
+
+  wdt_configure(5);
 }
 
 static const unsigned long PERIOD = 20;
@@ -91,11 +72,11 @@ void loop() {
     if (true || (sunrise < local && local < sunset)) {
       if (!daylight) {
         daylight = true;
-        status_led.pulse(5000);
+        status_led.ok();
       }
     } else {
       daylight = false;
-      status_led.flash(80, 2900);
+      status_led.alive();
     }
     perf.start();
     mqtt_client.publish_heartbeat(local, daylight);
@@ -103,11 +84,10 @@ void loop() {
     last_time = now;
   }
 
-  // Update status LED (flash or pulse)
-  status_led.update();
-
   // Let the MQTT client do some work
   mqtt_client.loop();
+
+  wdt_reset();
 
   delay(PERIOD);
 
