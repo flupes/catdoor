@@ -1,14 +1,15 @@
-// #define USE_SERIAL 1
-
 #include "RTClib.h"
 #include "accel.h"
 #include "daytimes.h"
 #include "ledctrl.h"
+#include "mqtt_client.h"
 #include "netcfg.h"
 #include "proxim.h"
 #include "solenoids.h"
 #include "utils.h"
+#include "watchdog_timer.h"
 
+// For float to string formatting
 #include <avr/dtostrf.h>
 
 // Where to get the battery voltage
@@ -17,6 +18,8 @@
 // Customization for acceptable daylight times
 static const TimeSpan margin_after_sunrise(0, 0, 45, 0);
 static const TimeSpan margin_before_sunset(0, 2, 0, 0);
+
+static const unsigned long LOOP_PERIOD_MS = 25;
 
 // global objects...
 RTC_DS3231 rtc;
@@ -32,13 +35,55 @@ void proximThreshold() { proxim_sensor.new_state = true; }
 
 void accelReady() { accel_sensor.data_ready = true; }
 
+void connect_wifi(WiFiClient& wifi_client, LedCtrl& status_led) {
+  static uint16_t counter = 0;
+  static uint8_t nbtry = 0;
+  int status = WL_IDLE_STATUS;  // the WiFi radio's status
+  // attempt to connect to WiFi network:
+  while (status != WL_CONNECTED) {
+    // We do not get out of this loop until connected.
+    // However, if the Wifi.begin block for more than SETUP_WATCHDOG
+    // then the board resets. Also, after 12 retries, we block -> reset
+    if (counter == 0) {
+      PRINT("Attempting to connect to WEP network, SSID: ");
+      PRINTLN(MY_WIFI_SSID);
+      status = WiFi.begin(MY_WIFI_SSID, MY_WIFI_PASS);
+      if (status == WL_CONNECTED) {
+#ifdef USE_SERIAL
+        PRINT("IP address: ");
+        IPAddress ip = WiFi.localIP();
+        PRINTLN(ip);
+#endif
+      } else {
+        wdt_reset();
+        PRINT("Connection Error: status=");
+        PRINTLN(status);
+        PRINTLN("Try again in 20s...");
+      }
+      nbtry++;
+      if (nbtry > 12) {
+        PRINTLN("Gave up connecting to Wifi!");
+        wdt_system_reset();
+      }
+      wdt_reset();
+      counter = 20 * 100;
+    }
+    status_led.update();
+    delay(10);
+    counter--;
+  }
+}
+
 void setup() {
+  wdt_configure(11);
+
 #ifdef USE_SERIAL
   Serial.begin(115200);
   while (!Serial) {
-    ;  // wait for serial port to connect. Needed for native USB port only
+    ;  // wait for serial port to connect to start the app
   }
-  Serial.println("Starting Catdoor app...");
+  Serial.print("sizeof(int)=");
+  Serial.println(sizeof(int));
 #endif
 
   //
@@ -118,7 +163,7 @@ void setup() {
     }
   }
   PRINTLN("MQTT client connected.");
-  const char *msg = "Catdoor v2 started";
+  const char* msg = "Catdoor v2 started";
   DateTime utc_time = rtc.now();
   unsigned int now = millis();
   DateTime local_time = utc_time.getLocalTime(TIME_ZONE_OFFSET);
@@ -126,10 +171,9 @@ void setup() {
   mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, msg);
   // start by flashing like in the darkness..
   status_led.flash(80, 2900);
-  ;
-}
 
-static const unsigned long PERIOD = 25;
+  wdt_configure(4);
+}
 
 void loop() {
   static bool cat_exiting = false;
@@ -181,13 +225,11 @@ void loop() {
       measuredvbat *= 2;     // we divided by 2, so multiply back
       measuredvbat *= 3.3;   // Multiply by 3.3V, our reference voltage
       measuredvbat /= 1024;  // convert to voltage
-      Serial.print("VBat: ");
-      Serial.println(measuredvbat);
       char num[6];
       dtostrf(measuredvbat, 5, 2, num);
       char str[12];
       sprintf(str, "VBAT=%s", num);
-      mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, str);
+      mqtt_client.publish_timed_msg(now, TOPIC_BATTERY_V, str);
       rtc_read = true;
     }
 
@@ -201,7 +243,8 @@ void loop() {
       PRINTLN(ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state]);
       accel_sensor.new_state = false;
       mqtt_client.publish_timed_msg(
-          now, TOPIC_DOOR, ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state]);
+          now, TOPIC_DOORSTATE,
+          ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state]);
     }
   }
 
@@ -268,14 +311,18 @@ void loop() {
   mqtt_client.loop();
 
   elapsed = millis() - now;
-  if (elapsed > PERIOD) {
+  if (elapsed > LOOP_PERIOD_MS) {
     PRINT("==== warning, loop overrun: ");
     PRINTLN(elapsed);
     mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, "LOOP OVERRUN");
     sleep_ms = 0;
   } else {
-    sleep_ms = PERIOD - elapsed;
+    sleep_ms = LOOP_PERIOD_MS - elapsed;
   }
+
+  // Say we are still alive!
+  wdt_reset();
+
   // Loop is variable period, but we do not really care...
   delay(sleep_ms);
 }
