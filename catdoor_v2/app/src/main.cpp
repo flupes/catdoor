@@ -28,51 +28,12 @@ Proxim proxim_sensor;
 Solenoids sol_actuators;
 LedCtrl status_led;
 WiFiClient wifi_client;
-MQTT_Client mqtt_client(wifi_client);
+MQTT_Client mqtt_client(wifi_client, status_led);
 
 // interupts function prototypes
 void proximThreshold() { proxim_sensor.new_state = true; }
 
 void accelReady() { accel_sensor.data_ready = true; }
-
-void connect_wifi(WiFiClient& wifi_client, LedCtrl& status_led) {
-  static uint16_t counter = 0;
-  static uint8_t nbtry = 0;
-  int status = WL_IDLE_STATUS;  // the WiFi radio's status
-  // attempt to connect to WiFi network:
-  while (status != WL_CONNECTED) {
-    // We do not get out of this loop until connected.
-    // However, if the Wifi.begin block for more than SETUP_WATCHDOG
-    // then the board resets. Also, after 12 retries, we block -> reset
-    if (counter == 0) {
-      PRINT("Attempting to connect to WEP network, SSID: ");
-      PRINTLN(MY_WIFI_SSID);
-      status = WiFi.begin(MY_WIFI_SSID, MY_WIFI_PASS);
-      if (status == WL_CONNECTED) {
-#ifdef USE_SERIAL
-        PRINT("IP address: ");
-        IPAddress ip = WiFi.localIP();
-        PRINTLN(ip);
-#endif
-      } else {
-        wdt_reset();
-        PRINT("Connection Error: status=");
-        PRINTLN(status);
-        PRINTLN("Try again in 20s...");
-      }
-      nbtry++;
-      if (nbtry > 12) {
-        PRINTLN("Gave up connecting to Wifi!");
-        wdt_system_reset();
-      }
-      wdt_reset();
-      counter = 20 * 100;
-    }
-    status_led.update();
-    delay(10);
-    counter--;
-  }
-}
 
 void setup() {
   wdt_configure(11);
@@ -141,7 +102,7 @@ void setup() {
   pwm_configure();
 
   // start in unkown state
-  status_led.flash(200, 400);
+  status_led.warning();
 
   // Configure pins for Adafruit ATWINC1500 Feather
   WiFi.setPins(8, 7, 4, 2);
@@ -152,16 +113,12 @@ void setup() {
     return;  // don't continue
   }
 
-  connect_wifi(wifi_client, status_led);
+  mqtt_client.connect_wifi(MY_WIFI_SSID, MY_WIFI_PASS);
+  status_led.warning();  // not done yet with setup!
   mqtt_client.setServer(MQTT_SERVER, MQTT_PORT);
-  if (!mqtt_client.connect_client()) {
-    PRINTLN("Failed to connect MQTT client!");
-    status_led.flash(100, 100);
-    while (1) {
-      status_led.update();
-      delay(20);
-    }
-  }
+  mqtt_client.connect_client();
+  status_led.warning();  // not done yet with setup!
+
   PRINTLN("MQTT client connected.");
   const char* msg = "Catdoor v2 started";
   DateTime utc_time = rtc.now();
@@ -170,7 +127,7 @@ void setup() {
   mqtt_client.sync_time(local_time, now);
   mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, msg);
   // start by flashing like in the darkness..
-  status_led.flash(80, 2900);
+  status_led.alive();
 
   wdt_configure(4);
 }
@@ -205,14 +162,14 @@ void loop() {
       if (morning < ltime && ltime < afternoon) {
         if (!daylight) {
           daylight = true;
-          status_led.pulse(5000);
+          status_led.ok();
           mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, "UNLOCKED");
         }
       }  // if daylight
       else {
         if (daylight) {
           daylight = false;
-          status_led.flash(80, 2900);
+          status_led.alive();
           mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, "LOCKED");
         }
       }  // else daylight
@@ -304,8 +261,6 @@ void loop() {
     jammed_condition = false;
     mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "RELEASE_HOT");
   }
-  // Update status LED (flash or pulse)
-  status_led.update();
 
   // Let the MQTT client do some work
   mqtt_client.loop();
