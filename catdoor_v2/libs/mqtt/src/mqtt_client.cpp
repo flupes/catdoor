@@ -3,6 +3,41 @@
 
 #include <SPI.h>
 
+void MQTT_Client::connect_wifi(const char* ssid, const char* pass) {
+  static uint8_t nbtry = 0;
+  int status = WL_IDLE_STATUS;  // the WiFi radio's status
+  // attempt to connect to WiFi network:
+  while (status != WL_CONNECTED) {
+    // We do not get out of this loop until connected.
+    // However, if the Wifi.begin block for more than SETUP_WATCHDOG
+    // then the board resets. Also, after 12 retries, we restart
+    visual.warning();
+    PRINT("Attempting to connect to WEP network, SSID: ");
+    PRINTLN(ssid);
+    status = WiFi.begin(ssid, pass);
+    if (status == WL_CONNECTED) {
+#ifdef USE_SERIAL
+      PRINT("IP address: ");
+      IPAddress ip = WiFi.localIP();
+      PRINTLN(ip);
+#endif
+    } else {
+      visual.error();
+      wdt_reset();
+      PRINT("Connection Error: status=");
+      PRINTLN(status);
+      PRINTLN("Try again in 20s...");
+    }
+    nbtry++;
+    if (nbtry > 12) {
+      PRINTLN("Gave up connecting to Wifi!");
+      wdt_system_reset();
+    }
+    wdt_reset();
+  }
+  visual.ok();
+}
+
 bool MQTT_Client::connect_client() {
   uint8_t nbtry = 0;
   bool ok = connected();
@@ -13,12 +48,14 @@ bool MQTT_Client::connect_client() {
   wdt_configure(11);
   // wdt_disable();
   while (!ok && nbtry < MAX_CLIENT_RETRIES) {
+    visual.warning();
     PRINT("Attempting MQTT connection... ");
     nbtry++;
     if (connect("MistyDoor")) {
       PRINTLN("connected");
       ok = true;
     } else {
+      visual.error();
       PRINT(nbtry);
       PRINT(" failed (rc=");
       PRINT(state());
@@ -37,6 +74,7 @@ bool MQTT_Client::connect_client() {
     PRINTLN("The board should reboot in a little bit");
     wdt_system_reset();
   }
+  visual.ok();
   wdt_configure(4);
   // We should never return false, since we rebooted first!
   return ok;

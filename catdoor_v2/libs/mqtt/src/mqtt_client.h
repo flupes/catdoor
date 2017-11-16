@@ -10,6 +10,7 @@
 #include <WiFi101.h>
 
 #include "RTClib.h"
+#include "VisualFeedback.h"
 #include "ledctrl.h"
 #include "utils.h"
 
@@ -25,7 +26,10 @@
 
 class MQTT_Client : public PubSubClient {
  public:
-  MQTT_Client(WiFiClient& wifi) : PubSubClient(wifi){};
+  MQTT_Client(WiFiClient& wifi, VisualFeedback& fb)
+      : PubSubClient(wifi), visual(fb){};
+
+  void connect_wifi(const char* ssid, const char* pass);
 
   bool connect_client();
 
@@ -43,6 +47,7 @@ class MQTT_Client : public PubSubClient {
   char payload[48];
   DateTime synched_time;
   unsigned long synched_ms;
+  VisualFeedback& visual;
 };
 
 #endif
