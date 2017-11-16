@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# sleep to let ntp some time to sync
+sleep 20
+
 session_name=catdoor
 
-catdir=/home/debian/catdoor
+catdir=/home/debian/devel/catdoor
 today=`date +%Y-%m-%d_%H%M%S`
 catlog=${catdir}/logs/${today}.log
 

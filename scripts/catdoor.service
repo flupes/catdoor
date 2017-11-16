@@ -5,7 +5,7 @@ After = network.target
 [Service]
 Type = forking
 User = debian
-ExecStart = /home/debian/catdoor/scripts/start-catdoor.bash
+ExecStart = /home/debian/devel/catdoor/scripts/start-catdoor.bash
 
 [Install]
 WantedBy = multi-user.target
