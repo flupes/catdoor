@@ -160,16 +160,16 @@ void loop() {
       DateTime morning = sunrise + margin_after_sunrise;
       DateTime afternoon = sunset - margin_before_sunset;
       if (morning < ltime && ltime < afternoon) {
+        status_led.ok();  // safe to repeat without breaking the pattern
         if (!daylight) {
           daylight = true;
-          status_led.ok();
           mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, "UNLOCKED");
         }
       }  // if daylight
       else {
+        status_led.alive();  // safe to repeat without breaking the pattern
         if (daylight) {
           daylight = false;
-          status_led.alive();
           mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, "LOCKED");
         }
       }  // else daylight
