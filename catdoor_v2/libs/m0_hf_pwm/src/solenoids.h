@@ -1,14 +1,24 @@
 #ifndef _CATDOOR_SOLENOIDS_H_
 #define _CATDOOR_SOLENOIDS_H_
 
-#include "m0_hf_pwm.h"
+#include <stdint.h>
 
 class Solenoids {
  public:
+  static Solenoids& Instance() {
+    static Solenoids instance_;
+    return instance_;
+  }
+
+  Solenoids(Solenoids const&) = delete;
+  void operator=(Solenoids const&) = delete;
+
   static const uint8_t PIN_A = 5;
   static const uint8_t PIN_B = 6;
-  static const unsigned long MAX_ON_DURATION = 40000;
-  static const unsigned long COOLDOWN_DURATION = 40000;
+  static const uint8_t PIN_C = 11;
+  static const unsigned long MAX_ON_DURATION_MS = 20000;
+  static const unsigned long COOLDOWN_DURATION_MS = 30000;
+  static const unsigned long UNJAMMING_DURATION_MS = 2000;
 
   typedef enum {
     OFF = 0,
@@ -18,73 +28,30 @@ class Solenoids {
     MAX_B = 4,
     HOT = 5
   } state_t;
-  state_t state;
-  unsigned long start_time;
-  unsigned long stop_time;
-  unsigned long factor;
-  Solenoids() : state(OFF) {}
 
-  void open(bool boost = false) {
-    // PRINT("Solenoids state = ");
-    // PRINTLN(state);
-    if (boost) {
-      factor = 3;
-    } else {
-      factor = 1;
-    }
-    if (state == OFF) {
-      start_time = millis();
-      state = MAX_A;
-      pwm_set(PIN_A, 512);
-    }
-  }
+  void open();
 
-  void release() {
-    pwm_set(PIN_A, 0);
-    pwm_set(PIN_B, 0);
-    state = OFF;
-  }
+  void release();
+
+  void unjam();
 
   // Go through the solenoids state machine
   // and return true if solenoids were released because a hot condition
-  bool process() {
-    unsigned long now = millis();
-    bool hot_release = false;
-    if (state == MAX_A) {
-      if ((now - start_time) > factor * 120) {
-        pwm_set(PIN_A, 250);
-        state = STAY_A;
-      }
-    }
-    if (state == STAY_A) {
-      if ((now - start_time) > factor * 150) {
-        pwm_set(PIN_B, 512);
-        state = MAX_B;
-      }
-    }
-    if (state == MAX_B) {
-      if ((now - start_time) > factor * 300) {
-        pwm_set(PIN_B, 250);
-        state = ON;
-      }
-    }
-    if (state == ON) {
-      if ((now - start_time) > MAX_ON_DURATION) {
-        release();
-        hot_release = true;
-        state = HOT;
-        stop_time = now;
-      }
-    }
-    if (state == HOT) {
-      // PRINT("state is hot... ");
-      // PRINTLN(now - stop_time);
-      if ((now - stop_time) > COOLDOWN_DURATION) {
-        state = OFF;
-      }
-    }
-    return hot_release;
-  }
+  void update();
+
+  state_t state() { return state_; };
+
+ private:
+  Solenoids() : state_(OFF), unjamming_(false), flip_sides_(false) {}
+
+  state_t state_;
+
+  unsigned long start_time_;
+  unsigned long stop_time_;
+  bool unjamming_;
+  bool flip_sides_;
+  uint8_t pin_a_;
+  uint8_t pin_b_;
 };
 
 #endif

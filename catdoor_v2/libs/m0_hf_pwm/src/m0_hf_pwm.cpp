@@ -10,7 +10,14 @@
 // Atmel SAMD21 documentation:
 // http://ww1.microchip.com/downloads/en/DeviceDoc/40001882A.pdf
 
-#include "Arduino.h"
+// Somehow, PlatformIO does not linl correctly .c files, so despite being C,
+// this file has the .cpp extension!
+
+#include "m0_hf_pwm.h"
+#include "LedCtrl.h"
+#include "Solenoids.h"
+
+#include <Arduino.h>
 
 static const unsigned char g_gen_clock_pwm = 4;
 static const uint32_t g_max_per = 512;
@@ -174,8 +181,8 @@ void pwm_configure() {
 #endif
 }
 
-bool pwm_set(uint8_t pin, uint32_t width) {
-  if (width > g_max_per) return false;
+int pwm_set(uint8_t pin, uint32_t width) {
+  if (width > g_max_per) return 0;
   if (pin == 5) {
     REG_TCC0_CC1 = width;
     while (TCC0->SYNCBUSY.bit.CC1)
@@ -189,7 +196,20 @@ bool pwm_set(uint8_t pin, uint32_t width) {
     while (TCC2->SYNCBUSY.bit.CC0)
       ;
   } else {
-    return false;
+    return 0;
   }
-  return true;
+  return 1;
+}
+
+// Define ISR base on the internal timer:
+// call update for LedCtrl and Solenoid
+void TC4_Handler()  // Interrupt Service Routine (ISR) for timer TC4
+{
+  // Check for overflow (OVF) interrupt
+  if (TC4->COUNT16.INTFLAG.bit.OVF && TC4->COUNT16.INTENSET.bit.OVF) {
+    Solenoids::Instance().update();
+    LedCtrl::Instance().update();
+
+    REG_TC4_INTFLAG = TC_INTFLAG_OVF;  // Clear the OVF interrupt flag
+  }
 }

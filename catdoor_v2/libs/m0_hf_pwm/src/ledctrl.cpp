@@ -1,70 +1,54 @@
 #include "ledctrl.h"
+#include "m0_hf_pwm.h"
 
-LedCtrl *LedCtrl::instance = 0;
-
-void TC4_Handler()  // Interrupt Service Routine (ISR) for timer TC4
-{
-  // Check for overflow (OVF) interrupt
-  if (TC4->COUNT16.INTFLAG.bit.OVF && TC4->COUNT16.INTENSET.bit.OVF) {
-    LedCtrl::instance->update();
-
-    REG_TC4_INTFLAG = TC_INTFLAG_OVF;  // Clear the OVF interrupt flag
-  }
-}
-
-LedCtrl::LedCtrl() : mode(MANUAL) {
-  if (instance != 0) {
-    // This is bad...
-    while (1)
-      ;
-  } else {
-    instance = this;
-  }
-}
+#include <Arduino.h>
 
 void LedCtrl::on() {
-  mode = MANUAL;
+  mode_ = MANUAL;
   pwm_set(PIN_L, 500);
 }
 
 void LedCtrl::off() {
-  mode = MANUAL;
+  mode_ = MANUAL;
   pwm_set(PIN_L, 0);
 }
 void LedCtrl::pulse(uint16_t period_ms) {
-  period = period_ms;
-  mode = PULSATING;
-  last = millis();
+  if (mode_ == PULSATING && period_ == period_ms) return;
+  period_ = period_ms;
+  mode_ = PULSATING;
+  last_ = millis();
 }
 
 void LedCtrl::flash(uint16_t on_time_ms, uint16_t off_time_ms) {
-  ontime = on_time_ms;
-  offtime = off_time_ms;
-  mode = FLASHING;
-  last = millis();
+  if (mode_ == FLASHING && ontime_ == on_time_ms && offtime_ == off_time_ms)
+    return;
+  ontime_ = on_time_ms;
+  offtime_ = off_time_ms;
+  mode_ = FLASHING;
+  last_ = millis();
 }
 
 void LedCtrl::update() {
   static bool on = false;
-  if (mode == MANUAL) return;
+  if (mode_ == MANUAL) return;
   unsigned long now = millis();
-  if (mode == FLASHING) {
-    if (on && ((now - last) > ontime)) {
+  if (mode_ == FLASHING) {
+    if (on && ((now - last_) > ontime_)) {
       pwm_set(PIN_L, 0);
-      last = now;
+      last_ = now;
       on = false;
     }
-    if (!on && ((now - last) > offtime)) {
+    if (!on && ((now - last_) > offtime_)) {
       pwm_set(PIN_L, 500);
-      last = now;
+      last_ = now;
       on = true;
     }
     return;
   }
-  if (mode == PULSATING) {
-    unsigned long elapsed = now - last;
+  if (mode_ == PULSATING) {
+    unsigned long elapsed = now - last_;
     uint16_t v = (uint16_t)(
-        16 + 240 * (1.0 + sin(2.0 * 3.141592 * (float)elapsed / period)));
+        16 + 240 * (1.0 + sin(2.0 * 3.141592 * (float)elapsed / period_)));
     pwm_set(PIN_L, v);
   }
 }

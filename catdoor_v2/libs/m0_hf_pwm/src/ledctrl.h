@@ -1,22 +1,20 @@
 #ifndef _CATDOOR_LEDCTRL_H_
 #define _CATDOOR_LEDCTRL_H_
 
-#include <Arduino.h>
+#include <stdint.h>
 #include "VisualFeedback.h"
-#include "m0_hf_pwm.h"
 
 class LedCtrl : public VisualFeedback {
-  static const uint8_t PIN_L = 11;
-
  public:
-  typedef enum { MANUAL, PULSATING, FLASHING } mode_t;
-  mode_t mode;
-  uint16_t period;
-  uint16_t ontime;
-  uint16_t offtime;
-  unsigned long last;
+  static LedCtrl& Instance() {
+    static LedCtrl instance_;
+    return instance_;
+  }
 
-  LedCtrl();
+  LedCtrl(LedCtrl const&) = delete;
+  void operator=(LedCtrl const&) = delete;
+
+  typedef enum { MANUAL, PULSATING, FLASHING } mode_t;
 
   void on();
 
@@ -36,7 +34,15 @@ class LedCtrl : public VisualFeedback {
 
   void alive() { flash(80, 6000); }
 
-  static LedCtrl *instance;
+  static const uint8_t PIN_L = 11;
+
+ private:
+  LedCtrl() : mode_(MANUAL) {}
+  mode_t mode_;
+  uint16_t period_;
+  uint16_t ontime_;
+  uint16_t offtime_;
+  unsigned long last_;
 };
 
 #endif
