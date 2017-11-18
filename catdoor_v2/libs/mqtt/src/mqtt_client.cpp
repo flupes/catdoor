@@ -10,7 +10,10 @@ void MQTT_Client::connect_wifi(const char* ssid, const char* pass) {
   while (status != WL_CONNECTED) {
     // We do not get out of this loop until connected.
     // However, if the Wifi.begin block for more than SETUP_WATCHDOG
-    // then the board resets. Also, after 12 retries, we restart
+    // then the board resets.
+    // In addition, after 5 minutes of trying (15 try x 20s), we also
+    // force a reset. Reset will trigger unjam, we do not want too
+    // unjamming too often when network is totally down (5 minutes is good).
     visual.warning();
     PRINT("Attempting to connect to WEP network, SSID: ");
     PRINTLN(ssid);
@@ -24,13 +27,16 @@ void MQTT_Client::connect_wifi(const char* ssid, const char* pass) {
     } else {
       visual.error();
       wdt_reset();
-      PRINT("Connection Error: status=");
+      PRINT(nbtry);
+      PRINT(" connection error: status=");
       PRINTLN(status);
       PRINTLN("Try again in 20s...");
+      delay(20000);
     }
     nbtry++;
-    if (nbtry > 12) {
+    if (nbtry > 15) {
       PRINTLN("Gave up connecting to Wifi!");
+      PRINTLN("The board should reboot now...");
       wdt_system_reset();
     }
     wdt_reset();
@@ -63,7 +69,7 @@ bool MQTT_Client::connect_client() {
       // This is BAD since we are not servicing the interrupts in the mean
       // time. However this should not happen since the MQTT timeout is
       // well above the heartbeat frequency (92s > 10s)
-      // And the connection was already blocking for serveral seconds!
+      // And the connection was already blocking for several seconds!
       wdt_reset();
       delay(20000);
     }
@@ -71,7 +77,7 @@ bool MQTT_Client::connect_client() {
   }
   if (nbtry == MAX_CLIENT_RETRIES) {
     PRINTLN("Give up on mqtt client connect!");
-    PRINTLN("The board should reboot in a little bit");
+    PRINTLN("The board should reboot now...");
     wdt_system_reset();
   }
   visual.ok();
