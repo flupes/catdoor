@@ -2,6 +2,7 @@
 #include "accel.h"
 #include "daytimes.h"
 #include "ledctrl.h"
+#include "m0_hf_pwm.h"
 #include "mqtt_client.h"
 #include "netcfg.h"
 #include "proxim.h"
@@ -25,8 +26,8 @@ static const unsigned long LOOP_PERIOD_MS = 25;
 RTC_DS3231 rtc;
 Accel accel_sensor;
 Proxim proxim_sensor;
-Solenoids sol_actuators;
-LedCtrl status_led;
+Solenoids& sol_actuators = Solenoids::Instance();
+LedCtrl& status_led = LedCtrl::Instance();
 WiFiClient wifi_client;
 MQTT_Client mqtt_client(wifi_client, status_led);
 
@@ -38,13 +39,27 @@ void accelReady() { accel_sensor.data_ready = true; }
 void setup() {
   wdt_configure(11);
 
+  // HF PWM
+  pwm_configure();
+
+  // let things stabilize before pulling too much current
+  // not necessary, but surprise the developer less also
+  delay(1000);
+
+  // Force unjam, no matter what, just in case we rebooted
+  // Also this says Hi to the world
+  sol_actuators.unjam();
+
+  // start in unkown state
+  status_led.warning();
+
 #ifdef USE_SERIAL
   Serial.begin(115200);
   while (!Serial) {
     ;  // wait for serial port to connect to start the app
   }
-  Serial.print("sizeof(int)=");
-  Serial.println(sizeof(int));
+// Serial.print("sizeof(int)=");
+// Serial.println(sizeof(int));
 #endif
 
   //
@@ -98,12 +113,6 @@ void setup() {
       ;
   }
 
-  // HF PWM
-  pwm_configure();
-
-  // start in unkown state
-  status_led.warning();
-
   // Configure pins for Adafruit ATWINC1500 Feather
   WiFi.setPins(8, 7, 4, 2);
   // Check for the presence of the shield
@@ -134,14 +143,14 @@ void setup() {
 
 void loop() {
   static bool cat_exiting = false;
-  static bool jammed_condition = false;
   static bool daylight = false;
   static bool rtc_read = true;
   static unsigned long last_time = millis();
-  static unsigned long action_time = millis();
+  static unsigned long last_unjam = millis();
   unsigned long now = millis();
   unsigned long elapsed;
   unsigned long sleep_ms;
+  static Solenoids::state_t prev_actuators_state = Solenoids::OFF;
 
   if ((now - last_time) > 10 * 1000) {
     if (rtc_read) {
@@ -159,7 +168,7 @@ void loop() {
                       sunset_sunrise_times[day - 1][3], 0, TIME_ZONE_OFFSET);
       DateTime morning = sunrise + margin_after_sunrise;
       DateTime afternoon = sunset - margin_before_sunset;
-      if (morning < ltime && ltime < afternoon) {
+      if (false || (morning < ltime && ltime < afternoon)) {
         status_led.ok();  // safe to repeat without breaking the pattern
         if (!daylight) {
           daylight = true;
@@ -213,7 +222,7 @@ void loop() {
       mqtt_client.publish_timed_msg(now, TOPIC_PROXIMITY, "CAT");
       if (daylight && accel_sensor.state == Accel::CLOSED) {
         // Retract the door locks!
-        if (sol_actuators.state == Solenoids::OFF) {
+        if (sol_actuators.state() == Solenoids::OFF) {
           sol_actuators.open();
           mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "RETRACTED");
         }
@@ -225,14 +234,15 @@ void loop() {
   }
 
   // Mark that cat is going out (to release the solenoids later)
-  if (sol_actuators.state == Solenoids::ON &&
+  if (sol_actuators.state() == Solenoids::ON &&
       accel_sensor.state == Accel::OPEN_OUT) {
     cat_exiting = true;
   }
 
   // Release solenoids if cat finished exiting
   if (cat_exiting && accel_sensor.state == Accel::CLOSED &&
-      sol_actuators.state == Solenoids::ON) {
+      sol_actuators.state() == Solenoids::ON &&
+      proxim_sensor.state == Proxim::CLEAR) {
     sol_actuators.release();
     mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "RELEASE");
     cat_exiting = false;
@@ -240,26 +250,21 @@ void loop() {
 
   // Detect jammed condition and try to resolve it
   if (accel_sensor.state == Accel::JAMMED &&
-      sol_actuators.state == Solenoids::OFF) {
-    sol_actuators.open(true);
-    mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "BOOST_RETRACT");
-    action_time = now;
-    jammed_condition = true;
-  }
-  // Release solenoids after an un-jamming operation
-  if (jammed_condition && sol_actuators.state == Solenoids::ON) {
-    if ((now - action_time) > 2000) {
-      sol_actuators.release();
-      jammed_condition = false;
-      mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "RELEASE_JAMMED");
+      sol_actuators.state() == Solenoids::OFF) {
+    if ((now - last_unjam) > Solenoids::COOLDOWN_DURATION_MS) {
+      last_unjam = now;
+      sol_actuators.unjam();
+      mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "UNJAM");
     }
   }
 
-  // Go through the solenoid state machine
-  bool hot_release = sol_actuators.process();
-  if (hot_release) {
-    jammed_condition = false;
-    mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "RELEASE_HOT");
+  // Check a hot release
+  if (sol_actuators.state() != prev_actuators_state) {
+    if (prev_actuators_state == Solenoids::ON &&
+        sol_actuators.state() == Solenoids::HOT) {
+      mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "HOT_RELEASE");
+    }
+    prev_actuators_state = sol_actuators.state();
   }
 
   // Let the MQTT client do some work
