@@ -21,20 +21,24 @@ def catdoor_proximity(msg):
 def catdoor_doorstate(msg):
     print ("Got new doorstate : "+msg.payload)
 
+def catdoor_battery_v(msg):
+    print ("Got new battery_v : "+msg.payload)
+
 def on_connect(client, userdata, flags, rc):
     print("Connected with results code "+str(rc))
-    client.subscribe("/catdoor2/#")
+    client.subscribe("/catdoor/#")
     
 def on_message(client, userdata, msg):
     userdata[msg.topic](msg)
     
 topiclist = { "/catdoor/avgproxim" : catdoor_avgproxim,
               "/catdoor/state" : catdoor_state,
-              "/catdoor2/heartbeat" : catdoor_heartbeat,
-              "/catdoor2/message" : catdoor_message,
-              "/catdoor2/solenoids" : catdoor_solenoids,
-              "/catdoor2/doorstate" : catdoor_doorstate,
-              "/catdoor2/proximity" : catdoor_proximity
+              "/catdoor/heartbeat" : catdoor_heartbeat,
+              "/catdoor/message" : catdoor_message,
+              "/catdoor/solenoids" : catdoor_solenoids,
+              "/catdoor/doorstate" : catdoor_doorstate,
+              "/catdoor/proximity" : catdoor_proximity,
+              "/catdoor/battery_v" : catdoor_battery_v
 }
     
 client = mqtt.Client("CatdoorListener", True, topiclist)
