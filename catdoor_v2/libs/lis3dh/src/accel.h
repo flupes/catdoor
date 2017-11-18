@@ -5,7 +5,7 @@
 #include "utils.h"
 
 static const char *ACCEL_STATES_NAMES[] = {"CLOSED", "OPEN_IN", "OPEN_OUT",
-                                           "JAMMED", "AJAR_IN"};
+                                           "AJAR_OUT", "AJAR_IN"};
 
 class Accel : public ADA_LIS3DH {
  public:
