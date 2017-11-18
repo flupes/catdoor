@@ -100,7 +100,7 @@ void pwm_configure() {
     ;  // Wait for synchronization
 
   // Each timer counts up to a maximum or TOP value set by the PER register,
-  // this determines the frequency of the PWM operation 12EHz / 512 = 93.75kHz
+  // this determines the frequency of the PWM operation 12MHz / 512 = 93.75kHz
   REG_TCC0_PER = g_max_per;  // Set the frequency of the PWM on TCC0 to 93kHz >
                              // cat auditible range
   while (TCC0->SYNCBUSY.bit.PER)
@@ -144,9 +144,9 @@ void pwm_configure() {
   while (TCC2->SYNCBUSY.bit.ENABLE)
     ;  // Wait for synchronization
 
-// In addition use the same clock to trigger an ISR using TC4
-// http://forum.arduino.cc/index.php?topic=425385.0
-#if 1
+  // In addition use the same clock to trigger an ISR using TC4
+  // http://forum.arduino.cc/index.php?topic=425385.0
+
   // Feed GCLK4 to TC4 and TC5
   REG_GCLK_CLKCTRL = GCLK_CLKCTRL_CLKEN |      // Enable GCLK4 to TC4 and TC5
                      GCLK_CLKCTRL_GEN_GCLK4 |  // Select GCLK4
@@ -162,7 +162,7 @@ void pwm_configure() {
 
   // NVIC_DisableIRQ(TC4_IRQn);
   // NVIC_ClearPendingIRQ(TC4_IRQn);
-  NVIC_SetPriority(TC4_IRQn, 0);  // Set the Nested Vector Interrupt Controller
+  NVIC_SetPriority(TC4_IRQn, 2);  // Set the Nested Vector Interrupt Controller
                                   // (NVIC) priority for TC4 to 0 (highest)
   NVIC_EnableIRQ(
       TC4_IRQn);  // Connect TC4 to Nested Vector Interrupt Controller (NVIC)
@@ -178,7 +178,6 @@ void pwm_configure() {
                    TC_CTRLA_ENABLE;              // Enable TC4
   while (TC4->COUNT16.STATUS.bit.SYNCBUSY)
     ;  // Wait for synchronization
-#endif
 }
 
 int pwm_set(uint8_t pin, uint32_t width) {

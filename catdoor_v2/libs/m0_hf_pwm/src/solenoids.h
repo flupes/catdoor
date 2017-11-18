@@ -16,15 +16,15 @@ class Solenoids {
   static const uint8_t PIN_A = 5;
   static const uint8_t PIN_B = 6;
   static const uint8_t PIN_C = 11;
-  static const unsigned long MAX_ON_DURATION_MS = 20000;
-  static const unsigned long COOLDOWN_DURATION_MS = 30000;
-  static const unsigned long UNJAMMING_DURATION_MS = 2000;
+  static const unsigned long MAX_ON_DURATION_MS = 40000;
+  static const unsigned long COOLDOWN_DURATION_MS = 60000;
+  static const unsigned long UNJAMMING_DURATION_MS = 4000;
 
   typedef enum {
     OFF = 0,
     ON = 1,
     MAX_A = 2,
-    STAY_A = 3,
+    LOW_A = 3,
     MAX_B = 4,
     HOT = 5
   } state_t;
@@ -39,7 +39,12 @@ class Solenoids {
   // and return true if solenoids were released because a hot condition
   void update();
 
-  state_t state() { return state_; };
+  state_t state() {
+    if (state_ == MAX_A || state_ == LOW_A || state_ == MAX_B)
+      return ON;
+    else
+      return state_;
+  };
 
  private:
   Solenoids() : state_(OFF), unjamming_(false), flip_sides_(false) {}

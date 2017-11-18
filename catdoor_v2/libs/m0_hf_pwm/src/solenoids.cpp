@@ -9,10 +9,10 @@
 // Solenoids are applied the following PWM:
 // 1 - Both Solenoids with 0 PWM --> OFF
 // 2 - Full PWM on Solenoid 1 --> MAX_A
-// 3 - Reduced PWM on Solenoid 1 --> STAY_A
+// 3 - Reduced PWM on Solenoid 1 --> LOW_A
 // 4 - Full PWM on Solenoid 2 --> MAX_B
 // 5 - Reduced PWM on Solenoid 2 --> ON
-// column 1: delay between MAX_A and STAY_A
+// column 1: delay between MAX_A and LOW_A
 // column 2: delay between MAX_A and MAX_B
 // column 3: delay between MAX_A and STAY_B
 static unsigned long retract_times_us[2][3] = {{120000L, 150000L, 270000L},
@@ -55,10 +55,10 @@ void Solenoids::update() {
     case MAX_A:
       if ((now - start_time_) > retract_times_us[unjamming_][0]) {
         pwm_set(pin_a_, 250);
-        state_ = STAY_A;
+        state_ = LOW_A;
       }
       break;
-    case STAY_A:
+    case LOW_A:
       if ((now - start_time_) > retract_times_us[unjamming_][1]) {
         pwm_set(pin_b_, 512);
         state_ = MAX_B;

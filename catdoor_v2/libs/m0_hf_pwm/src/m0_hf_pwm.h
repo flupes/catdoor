@@ -2,12 +2,20 @@
   High Frequency PWM generation and control on a SAMD21 (Cortex M0)
 
   Rather than the slow Arduino PWM implementation, use the M0 TCC system
-  to generate a high frequency PWM signal.
+  to generate a high frequency PWM signal at *93kHz*.
   Because of the very customize clock + signal muxing, this code only
-  controls PWM on 3 pins:
+  controls a PWM signal on 3 pins:
     - D5
     - D6
     - D11
+
+  This library uses the following systems:
+    - Global Clock : GCLK4 (setup divisor 1 -> 12MHz) that feeds:
+      - TCC0 for control of D5 and D6
+      - TCC2 for control of D11
+      - TC4 to trigger an ISR every 20ms
+        (TC4_Handler is hardcoded to call the update methods of
+        both Solenoids and LedCtrl)
 */
 
 #ifndef _M0_HF_PWM_H_
