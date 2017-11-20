@@ -11,7 +11,7 @@
 Adafruit_VCNL4010 proxim_sensor;
 
 #define NB_PROXIM_SAMPLES 20
-#define NB_ANOMALY_COUNTS 9
+#define NB_ANOMALY_COUNTS 7
 
 #define MAX_CLIENT_RETRIES 10
 
