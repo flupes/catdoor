@@ -2,6 +2,8 @@
 # and sends notification using pushbullet
 
 from time import localtime, strftime, sleep
+from datetime import datetime
+from array import array
 
 import threading
 
@@ -46,6 +48,7 @@ class Heartbeat(object):
         self.alive = False
         self.last_beat = None
         self.timer = None
+        self.out_of_sync = None
         self.duration = max_silence_sec
 
     def fresh_heartbeat(self):
@@ -64,13 +67,34 @@ class Heartbeat(object):
 
     def heartbeat(self, msg):
         self.last_beat = localtime()
+        print(time2str(self.last_beat)+" | got heartbeat msg : "+msg.payload)
         if not self.alive:
             self.fresh_heartbeat()
         if self.timer != None:
             self.timer.cancel()
         self.timer = threading.Timer(self.duration, self.missing_heartbeat)
         self.timer.start()
-        print(time2str(self.last_beat)+" | got heartbeat msg : "+msg.payload)
+
+        args = msg.payload.split()
+        strt = args[0]+" "+args[1]
+        rtc = datetime.strptime(strt, '%Y-%m-%d %H:%M:%S')
+        now = datetime.now()
+        diff = (rtc-now).total_seconds()
+        if abs(diff) > 20:
+            if self.out_of_sync != True:
+                title = "Catdoor Notification"
+                offset = "Catdoor clock is not in sync! (offset="+\
+                    str(int(diff))+"s)"
+                publish(title, offset)
+                self.out_of_sync = True
+        else:
+            if self.out_of_sync != False:
+                title = "Catdoor Notification"
+                offset = "Catdoor clock is in sync. (offset="+\
+                    str(int(diff))+"s)"
+                publish(title, offset)
+                self.out_of_sync = False
+
 
 class DoorState(object):
     def __init__(self, max_opened_state_sec):
@@ -129,6 +153,71 @@ class DoorState(object):
             if self.open_in == True or self.open_out == True:
                 self.door_cycle()
 
+class BatteryMonitor(object):
+    def __init__(self, averaging_window_size):
+        self.low_battery_threshold = 3.65
+        self.use_battery_threshold = 4.15
+        self.battery_full_threshold = 4.20
+        self.charging_threshold = 3.75
+        self.no_battery_threshold = 4.35
+        self.significant_change = 0.01
+        self.values = array('f')
+        self.window = averaging_window_size
+        self.index = 0
+        self.mode = 'UNKNOWN'
+        self.prev_volts = self.use_battery_threshold
+
+    def __add(self, v):
+        if len(self.values) < self.window:
+            self.values.append(v)
+        else :
+            self.values[self.index] = v
+        self.index = self.index+1
+        if self.index == self.window:
+            self.index = 0
+
+    def __avg(self):
+        sum = 0.0
+        # inefficient method to avoid juggling with indexes
+        for v in self.values:
+            sum = sum + v
+        return sum / len(self.values)
+
+    def new_voltage(self, msg):
+        print (time2str(localtime())+" | got new battery_v : "+msg.payload)
+        self.__add(float(msg.payload.split()[2]))
+        volts = self.__avg()
+        print ("Average Voltage = %.3f V / current mode = %s") % (volts, self.mode)
+        if volts > self.no_battery_threshold:
+            if self.mode != 'NO_BATTERY':
+                self.mode = 'NO_BATTERY'
+                publish("Catdoor Warning", "No battery present!")
+        elif volts < self.low_battery_threshold:
+            if self.mode != 'LOW_BATTERY':
+                self.mode = 'LOW_BATTERY'
+                publish("Catdoor Error", "LOW battery!")
+        elif self.mode == 'LOW_BATTERY':
+            if volts > self.charging_threshold:
+                self.mode = 'CHARGING'
+            elif volts > self.low_battery_threshold:
+                self.mode = 'BATTERY'
+        elif self.battery_full_threshold < volts and volts < self.no_battery_threshold:
+            if self.mode != 'FULL':
+                self.mode = 'FULL'
+                publish("Catdoor Notification", "Battery is fully charged!")
+        elif volts < self.use_battery_threshold and \
+            volts < self.prev_volts-self.significant_change:
+            self.pref_volts = volts
+            if self.mode != 'BATTERY':
+                self.mode = 'BATTERY'
+                publish("Catdoor Warning", "Running on Battery Power")
+        elif volts > self.charging_threshold and \
+            volts > self.prev_volts+self.significant_change:
+            self.pref_volts = volts
+            if self.mode != 'CHARGING':
+                self.mode = 'CHARGING'
+                publish("Catdoor Notification", "Running on External Power")
+        self.prev_volts = volts
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
@@ -137,11 +226,18 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     userdata[msg.topic](msg)
 
-def catdoor_battery_v(msg):
-    print (time2str(localtime())+" | got new battery_v : "+msg.payload)
-
 def catdoor_message(msg):
     print (time2str(localtime())+" | got new message : "+msg.payload)
+    title = "Catdoor Notification"
+    args = msg.payload.split()
+    key = args[2]
+    if key == "LOCKED":
+        msg = "LOCKED (will re-open tomorrow morning around "+args[3]+")"
+    elif key == "UNLOCKED":
+        msg = "UNLOCKED (will close this afternoon at "+args[3]+")"
+    else:
+        msg = msg.payload
+    publish(title, msg)
 
 def catdoor_solenoids(msg):
     print (time2str(localtime())+" | got new solenoids : "+msg.payload)
@@ -151,6 +247,9 @@ def catdoor_proximity(msg):
 
 beatcheck = Heartbeat(90)
 doorstate = DoorState(60)
+battery_monitor = BatteryMonitor(6)
+
+print("catdoor_pusbullet starting...")
 
 topiclist = {
     "/catdoor/message" : catdoor_message,
@@ -158,7 +257,7 @@ topiclist = {
     "/catdoor/solenoids" : catdoor_solenoids,
     "/catdoor/doorstate" : doorstate.new_state,
     "/catdoor/proximity" : catdoor_proximity,
-    "/catdoor/battery_v" : catdoor_battery_v
+    "/catdoor/battery_v" : battery_monitor.new_voltage
 }
 
 mqttClient = mqtt.Client("CatdoorSubscriber", True, topiclist)
