@@ -16,6 +16,7 @@ class Accel : public ADA_LIS3DH {
   static const int16_t V_OPENED = -13000;
   static const int16_t H_OPENED = 10000;
   static const uint8_t JAMCOUNTS = 10;  // 1.2s at 10Hz
+  static const uint8_t CLOSED_COUNTS = 4;
   // Horizontal:
   // Zaccel > 0 --> open IN
   // Zaccel < 0 --> open OUT
@@ -29,19 +30,22 @@ class Accel : public ADA_LIS3DH {
   volatile bool data_ready;
   volatile bool new_state;
   volatile state_t state;
-  uint8_t jamcounter;
+  uint8_t jamcounter;      // "integrate" time jammed is detected
+  uint8_t closed_counter;  // just count number of successive closed
 
   Accel(void)
       : ADA_LIS3DH(),
         data_ready(false),
         new_state(false),
         state(CLOSED),
-        jamcounter(0) {}
+        jamcounter(0),
+        closed_counter(0) {}
 
   void change_state(state_t s) {
     state = s;
     new_state = true;
     jamcounter = 0;
+    closed_counter = 0;
   }
 
   void process() {
@@ -55,7 +59,10 @@ class Accel : public ADA_LIS3DH {
     // compute new state
     if (accel[0] < V_CLOSED && abs(accel[2]) < H_CLOSED) {
       if (state != CLOSED) {
-        change_state(CLOSED);
+        closed_counter++;
+        if (closed_counter > CLOSED_COUNTS) {
+          change_state(CLOSED);
+        }
       }
       if (jamcounter > 0) jamcounter--;
       return;
