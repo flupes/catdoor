@@ -146,11 +146,13 @@ void loop() {
   static bool daylight = false;
   static bool rtc_read = true;
   static unsigned long last_time = millis();
-  static unsigned long last_unjam = millis();
+  static unsigned long last_unjam = last_time;
+  static unsigned long door_clear_time = last_time;
   unsigned long now = millis();
   unsigned long elapsed;
   unsigned long sleep_ms;
   static Solenoids::state_t prev_actuators_state = Solenoids::OFF;
+  static char buffer[24];
 
   if ((now - last_time) > 10 * 1000) {
     if (rtc_read) {
@@ -172,14 +174,18 @@ void loop() {
         status_led.ok();  // safe to repeat without breaking the pattern
         if (!daylight) {
           daylight = true;
-          mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, "UNLOCKED");
+          sprintf(buffer, "%s %d:%d", "UNLOCKED", afternoon.hour(),
+                  afternoon.minute());
+          mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, buffer);
         }
       }  // if daylight
       else {
         status_led.alive();  // safe to repeat without breaking the pattern
         if (daylight) {
           daylight = false;
-          mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, "LOCKED");
+          sprintf(buffer, "%s %d:%d", "LOCKED", morning.hour(),
+                  morning.minute());
+          mqtt_client.publish_timed_msg(now, TOPIC_MESSAGE, buffer);
         }
       }  // else daylight
       rtc_read = false;
@@ -193,9 +199,9 @@ void loop() {
       measuredvbat /= 1024;  // convert to voltage
       char num[6];
       dtostrf(measuredvbat, 5, 2, num);
-      char str[12];
-      sprintf(str, "VBAT=%s", num);
-      mqtt_client.publish_timed_msg(now, TOPIC_BATTERY_V, str);
+      // char str[12];
+      // sprintf(str, "VBAT %s", num);
+      mqtt_client.publish_timed_msg(now, TOPIC_BATTERY_V, num);
       rtc_read = true;
     }
 
@@ -229,8 +235,17 @@ void loop() {
       }
     } else {
       PRINTLN("CLEAR");
+      door_clear_time = now;
       mqtt_client.publish_timed_msg(now, TOPIC_PROXIMITY, "CLEAR");
     }
+  }
+
+  // Relase if the cat give up after 12s (to avoid a HOT_RELEASE much later)
+  if (proxim_sensor.state == Proxim::CLEAR &&
+      sol_actuators.state() == Solenoids::ON &&
+      accel_sensor.state == Accel::CLOSED && (now - door_clear_time) > 12000) {
+    sol_actuators.release();
+    mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "RELEASE");
   }
 
   // Mark that cat is going out (to release the solenoids later)
