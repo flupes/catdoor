@@ -160,7 +160,7 @@ class BatteryMonitor(object):
         self.battery_full_threshold = 4.20
         self.charging_threshold = 3.75
         self.no_battery_threshold = 4.35
-        self.significant_change = 0.01
+        self.significant_change = 0.04
         self.values = array('f')
         self.window = averaging_window_size
         self.index = 0
@@ -206,18 +206,17 @@ class BatteryMonitor(object):
                 self.mode = 'FULL'
                 publish("Catdoor Notification", "Battery is fully charged!")
         elif volts < self.use_battery_threshold and \
-            volts < self.prev_volts-self.significant_change:
-            self.pref_volts = volts
+            volts < self.prev_volts:
             if self.mode != 'BATTERY':
                 self.mode = 'BATTERY'
                 publish("Catdoor Warning", "Running on Battery Power")
         elif volts > self.charging_threshold and \
-            volts > self.prev_volts+self.significant_change:
-            self.pref_volts = volts
+            volts > self.prev_volts:
             if self.mode != 'CHARGING':
                 self.mode = 'CHARGING'
                 publish("Catdoor Notification", "Running on External Power")
-        self.prev_volts = volts
+        if abs(self.prev_volts-volts) > self.significant_change:
+            self.prev_volts = volts
 
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code "+str(rc))
@@ -247,7 +246,7 @@ def catdoor_proximity(msg):
 
 beatcheck = Heartbeat(90)
 doorstate = DoorState(60)
-battery_monitor = BatteryMonitor(6)
+battery_monitor = BatteryMonitor(9)
 
 print("catdoor_pusbullet starting...")
 
