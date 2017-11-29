@@ -32,6 +32,7 @@ class Accel : public ADA_LIS3DH {
   volatile state_t state;
   uint8_t jamcounter;      // "integrate" time jammed is detected
   uint8_t closed_counter;  // just count number of successive closed
+  int16_t calib_h;
 
   Accel(void)
       : ADA_LIS3DH(),
@@ -39,13 +40,37 @@ class Accel : public ADA_LIS3DH {
         new_state(false),
         state(CLOSED),
         jamcounter(0),
-        closed_counter(0) {}
+        closed_counter(0) {
+    calib_h = 0;
+  }
 
   void change_state(state_t s) {
     state = s;
     new_state = true;
     jamcounter = 0;
     closed_counter = 0;
+  }
+
+  int16_t calibrate() {
+    static const size_t loops = 20;
+    int32_t h_values = 0;
+    for (size_t i = 0; i < loops; i++) {
+      while (!new_state) {
+        delay(1);
+      }
+      read();
+      new_state = false;
+      h_values += accel[2];
+      if (accel[2] > V_CLOSED - 100) {
+        PRINT("Vertical acceleration outside margin when closed: ");
+        PRINT(accel[2]);
+        PRINTLN(" !!!");
+      }
+    }
+    calib_h = h_values / loops;
+    PRINT("Calibration for horizontal acceleration = ");
+    PRINTLN(calib_h);
+    return calib_h;
   }
 
   void process() {
@@ -57,7 +82,7 @@ class Accel : public ADA_LIS3DH {
     // PRINT(accel[2]);
     // PRINTLN();
     // compute new state
-    if (accel[0] < V_CLOSED && abs(accel[2]) < H_CLOSED) {
+    if (accel[0] < V_CLOSED && abs(accel[2]) < H_CLOSED - calib_h) {
       if (state != CLOSED) {
         closed_counter++;
         if (closed_counter > CLOSED_COUNTS) {
@@ -83,14 +108,15 @@ class Accel : public ADA_LIS3DH {
         return;
       }
     }
-    if (accel[0] >= V_CLOSED && accel[2] >= H_CLOSED) {
+    if (accel[0] >= V_CLOSED && accel[2] >= H_CLOSED - calib_h) {
       if (state != AJAR_IN) {
         change_state(AJAR_IN);
       }
       if (jamcounter > 0) jamcounter--;
       return;
     }
-    if (accel[0] < V_JAMMED && accel[2] < -H_CLOSED && accel[2] > -H_JAMMED) {
+    if (accel[0] < V_JAMMED && accel[2] < -(H_CLOSED - calib_h) &&
+        accel[2] > -H_JAMMED) {
       // only consider jamed state when door is out
       // PRINT("accel[0]=");
       // PRINT(accel[0]);
