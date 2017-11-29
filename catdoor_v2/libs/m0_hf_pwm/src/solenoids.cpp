@@ -2,6 +2,7 @@
 #include "m0_hf_pwm.h"
 
 #include <Arduino.h>
+#include "utils.h"
 
 // Delays in us on when to change the pwm on the solenoids:
 // first line: normal opening
@@ -19,6 +20,7 @@ static unsigned long retract_times_us[2][3] = {{120000L, 150000L, 270000L},
                                                {240000L, 300000L, 540000L}};
 
 void Solenoids::open() {
+  PRINTLN("Solenoids::open()");
   if (state_ == OFF || unjamming_) {
     // Alternate which solenoid trigger first
     if (flip_sides_) {
@@ -37,13 +39,16 @@ void Solenoids::open() {
 }
 
 void Solenoids::release() {
+  PRINTLN("Solenoids::release()");
   pwm_set(PIN_A, 0);
   pwm_set(PIN_B, 0);
   state_ = OFF;
+  PRINTLN("Solenoids -> OFF");
 }
 
 void Solenoids::unjam() {
   unjamming_ = 1;
+  PRINTLN("Solenoids::ujam()");
   open();
 }
 
@@ -68,6 +73,7 @@ void Solenoids::update() {
       if ((now - start_time_) > retract_times_us[unjamming_][2]) {
         pwm_set(pin_b_, 250);
         state_ = ON;
+        PRINTLN("Solenoids -> ON");
       }
       break;
     case ON:
@@ -80,12 +86,14 @@ void Solenoids::update() {
       if ((now - start_time_) > MAX_ON_DURATION_MS * 1000) {
         release();
         state_ = HOT;
+        PRINTLN("Solenoids -> HOT");
         stop_time_ = now;
       }
       break;
     case HOT:
       if ((now - stop_time_) > COOLDOWN_DURATION_MS * 1000) {
         state_ = OFF;
+        PRINTLN("Solenoids -> OFF");
       }
       break;
     default:
