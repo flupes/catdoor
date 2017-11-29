@@ -18,9 +18,7 @@ RTC_DS3231 rtc;
 // --> use default I2C address
 Accel accel_sensor;
 
-bool ext_int = false;
-
-void accelReady() { accel_sensor.data_ready = true; }
+void accelReady() { accel_sensor.data_ready_ = true; }
 
 void setup() {
   Serial.begin(115200);
@@ -38,7 +36,7 @@ void setup() {
   Serial.println("LIS3DH found!");
 
   // Set data rate
-  accel_sensor.setDataRate(LIS3DH_DATARATE_10_HZ);
+  accel_sensor.setDataRate(LIS3DH_DATARATE_25_HZ);
 
   // Set accelerometer range
   accel_sensor.setRange(LIS3DH_RANGE_2_G);
@@ -48,6 +46,9 @@ void setup() {
   attachInterrupt(A2, accelReady, RISING);
   delay(1);
   accel_sensor.read();
+
+  delay(20);
+  accel_sensor.calibrate();
 
 #ifdef USE_PWM
   pwm_configure();
@@ -66,13 +67,14 @@ void setup() {
 void loop() {
   // static unsigned long last = millis();
 
-  if (accel_sensor.data_ready) {
+  if (accel_sensor.data_ready_) {
     // Serial.println("Reading data...");
     accel_sensor.process();
-    if (accel_sensor.new_state) {
-      Serial.println(ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state]);
-      accel_sensor.new_state = false;
+    if (accel_sensor.new_state_) {
+      Serial.println(ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state_]);
+      accel_sensor.new_state_ = false;
     }
+#if 0
     // Serial.println("OK");
     Serial.print(accel_sensor.accel[0]);
     Serial.print("\t");
@@ -89,7 +91,7 @@ void loop() {
     // Serial.print("elapsed=");
     // Serial.print(now - last);
     Serial.println();
-    ext_int = false;
+#endif
   }
 
 #ifdef USE_PWM
