@@ -1,35 +1,26 @@
-#include "ADA_LIS3DH.h"
+#include "accel.h"
 
-// #define NOISE_PWM
-// #define NOISE_WIFI
-#define NOISE_RTC
+// #define USE_PWM
+// #define USE_RTC
 
-#ifdef NOISE_PWM
+#ifdef USE_PWM
 #include "ledctrl.h"
-LedCtrl status_led;
+#include "m0_hf_pwm.h"
+LedCtrl& status_led = LedCtrl::Instance();
 #endif
 
-#ifdef NOISE_WIFI
-#define USE_SERIAL 1
-#include "RTCLib.h"
-#include "netcfg.h"
-WiFiClient wifi_client;
-MQTT_Client mqtt_client(wifi_client);
-DateTime ltime(2017, 11, 11, 8, 0, 0);
-#endif
-
-#ifdef NOISE_RTC
+#ifdef USE_RTC
 #include "RTCLib.h"
 RTC_DS3231 rtc;
 #endif
 
 // Initialize the accelerometer with the default parameter
 // --> use default I2C address
-ADA_LIS3DH accel_sensor = ADA_LIS3DH();
+Accel accel_sensor;
 
 bool ext_int = false;
 
-void accelReady() { ext_int = true; }
+void accelReady() { accel_sensor.data_ready = true; }
 
 void setup() {
   Serial.begin(115200);
@@ -47,7 +38,7 @@ void setup() {
   Serial.println("LIS3DH found!");
 
   // Set data rate
-  accel_sensor.setDataRate(LIS3DH_DATARATE_25_HZ);
+  accel_sensor.setDataRate(LIS3DH_DATARATE_10_HZ);
 
   // Set accelerometer range
   accel_sensor.setRange(LIS3DH_RANGE_2_G);
@@ -58,35 +49,12 @@ void setup() {
   delay(1);
   accel_sensor.read();
 
-#ifdef NOISE_PWM
+#ifdef USE_PWM
   pwm_configure();
   status_led.pulse(5000);
 #endif
 
-#ifdef NOISE_WIFI
-  // Configure pins for Adafruit ATWINC1500 Feather
-  WiFi.setPins(8, 7, 4, 2);
-  // Check for the presence of the shield
-  Serial.println("Connecting to the Wifi module...");
-  if (WiFi.status() == WL_NO_SHIELD) {
-    Serial.println("WiFi shield not present");
-    return;  // don't continue
-  }
-
-  connect_wifi(wifi_client, status_led);
-  mqtt_client.setServer(MQTT_SERVER, MQTT_PORT);
-  if (!mqtt_client.connect_client()) {
-    Serial.println("Failed to connect MQTT client!");
-    while (1) {
-      delay(20);
-    }
-  }
-  Serial.println("MQTT client connected.");
-  const char *msg = "Accel with WIFI test started.";
-  mqtt_client.publish_timed_msg(ltime, TOPIC_MESSAGE, msg);
-#endif
-
-#ifdef NOISE_RTC
+#ifdef USE_RTC
   if (!rtc.begin()) {
     Serial.println("Couldn't find RTC!");
     while (1)
@@ -96,11 +64,15 @@ void setup() {
 }
 
 void loop() {
-  static unsigned long last = millis();
+  // static unsigned long last = millis();
 
-  if (ext_int) {
+  if (accel_sensor.data_ready) {
     // Serial.println("Reading data...");
-    accel_sensor.read();
+    accel_sensor.process();
+    if (accel_sensor.new_state) {
+      Serial.println(ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state]);
+      accel_sensor.new_state = false;
+    }
     // Serial.println("OK");
     Serial.print(accel_sensor.accel[0]);
     Serial.print("\t");
@@ -119,21 +91,14 @@ void loop() {
     Serial.println();
     ext_int = false;
   }
-#ifdef NOISE_PWM
+
+#ifdef USE_PWM
   status_led.update();
 #endif
 
-#ifdef NOISE_WIFI
-  unsigned long now = millis();
-  if (now - last > 2000) {
-    mqtt_client.publish_timed_msg(ltime, TOPIC_HEARTBEAT, "ACCEL");
-    last = now;
-  }
-  mqtt_client.loop();
-#endif
-
-#ifdef NOISE_RTC
+#ifdef USE_RTC
   DateTime utc = rtc.now();
+  utc = utc + TimeSpan(1);
 #endif
 
   delay(25);
