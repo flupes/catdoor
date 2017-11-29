@@ -20,7 +20,10 @@
 static const TimeSpan margin_after_sunrise(0, 0, 45, 0);
 static const TimeSpan margin_before_sunset(0, 2, 0, 0);
 
-static const unsigned long LOOP_PERIOD_MS = 25;
+static const unsigned long LOOP_PERIOD_MS = 10;
+
+// To debug during dark period
+static const bool debug_mode = false;
 
 // global objects...
 RTC_DS3231 rtc;
@@ -34,7 +37,7 @@ MQTT_Client mqtt_client(wifi_client, status_led);
 // interupts function prototypes
 void proximThreshold() { proxim_sensor.new_state = true; }
 
-void accelReady() { accel_sensor.data_ready = true; }
+void accelReady() { accel_sensor.data_ready_ = true; }
 
 void setup() {
   wdt_configure(11);
@@ -73,7 +76,7 @@ void setup() {
   PRINTLN("LIS3DH found.");
 
   // configure sensor
-  accel_sensor.setDataRate(LIS3DH_DATARATE_10_HZ);
+  accel_sensor.setDataRate(LIS3DH_DATARATE_25_HZ);
   accel_sensor.setRange(LIS3DH_RANGE_2_G);
 
   // attach hardware interrupt
@@ -81,6 +84,8 @@ void setup() {
   attachInterrupt(A2, accelReady, RISING);
   delay(1);             // for some reason, this delay is CRITICAL!
   accel_sensor.read();  // read reset the signal --> start interrupts
+  delay(1);
+  accel_sensor.calibrate();
 
   //
   // Proximity sensor setup
@@ -209,14 +214,13 @@ void loop() {
   }  // if 10s
 
   // Process accelerometer
-  if (accel_sensor.data_ready) {
+  if (accel_sensor.data_ready_) {
     accel_sensor.process();
-    if (accel_sensor.new_state) {
-      PRINTLN(ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state]);
-      accel_sensor.new_state = false;
+    if (accel_sensor.new_state_) {
+      accel_sensor.new_state_ = false;
       mqtt_client.publish_timed_msg(
           now, TOPIC_DOORSTATE,
-          ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state]);
+          ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state_]);
     }
   }
 
@@ -226,7 +230,7 @@ void loop() {
     if (proxim_sensor.state == Proxim::CAT) {
       PRINTLN("CAT");
       mqtt_client.publish_timed_msg(now, TOPIC_PROXIMITY, "CAT");
-      if (daylight && accel_sensor.state == Accel::CLOSED) {
+      if ((daylight || debug_mode) && accel_sensor.state_ == Accel::CLOSED) {
         // Retract the door locks!
         if (sol_actuators.state() == Solenoids::OFF) {
           sol_actuators.open();
@@ -243,19 +247,19 @@ void loop() {
   // Relase if the cat give up after 12s (to avoid a HOT_RELEASE much later)
   if (proxim_sensor.state == Proxim::CLEAR &&
       sol_actuators.state() == Solenoids::ON &&
-      accel_sensor.state == Accel::CLOSED && (now - door_clear_time) > 12000) {
+      accel_sensor.state_ == Accel::CLOSED && (now - door_clear_time) > 12000) {
     sol_actuators.release();
     mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "RELEASE");
   }
 
   // Mark that cat is going out (to release the solenoids later)
   if (sol_actuators.state() == Solenoids::ON &&
-      accel_sensor.state == Accel::OPEN_OUT) {
+      accel_sensor.state_ == Accel::OPEN_OUT) {
     cat_exiting = true;
   }
 
   // Release solenoids if cat finished exiting
-  if (cat_exiting && accel_sensor.state == Accel::CLOSED &&
+  if (cat_exiting && accel_sensor.state_ == Accel::CLOSED &&
       sol_actuators.state() == Solenoids::ON &&
       proxim_sensor.state == Proxim::CLEAR) {
     sol_actuators.release();
@@ -264,7 +268,7 @@ void loop() {
   }
 
   // Detect jammed condition and try to resolve it
-  if (accel_sensor.state == Accel::JAMMED &&
+  if (accel_sensor.state_ == Accel::AJAR_OUT &&
       sol_actuators.state() == Solenoids::OFF) {
     if ((now - last_unjam) > Solenoids::COOLDOWN_DURATION_MS) {
       last_unjam = now;
