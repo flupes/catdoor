@@ -9,8 +9,8 @@ static const char *ACCEL_STATES_NAMES[] = {"CLOSED", "OPEN_IN", "OPEN_OUT",
 
 class Accel : public ADA_LIS3DH {
  public:
-  static const int16_t CLOSED_TOLERANCE = 25;  // milliradian
-  static const int16_t OPENED_ANGLE = 655;     // milliradian
+  static const int16_t CLOSED_TOLERANCE = 35;  // milliradian
+  static const int16_t OPENED_ANGLE = 720;     // milliradian
 
   volatile bool data_ready_;
   volatile bool new_state_;

@@ -35,7 +35,7 @@ void Accel::evaluateState(state_t s) {
         states_counter_[i] = 0;
       }
     }
-    if (states_counter_[s] > STATE_DEBOUNCE_COUNT) {
+    if (states_counter_[s] >= STATE_DEBOUNCE_COUNT) {
       state_ = s;
       new_state_ = true;
       PRINT(ACCEL_STATES_NAMES[(uint8_t)state_]);
