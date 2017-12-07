@@ -65,6 +65,8 @@ void setup() {
 }
 
 void loop() {
+  static unsigned long last = millis();
+  static unsigned long now = millis();
   // static unsigned long last = millis();
 
   if (accel_sensor.data_ready_) {
@@ -73,6 +75,13 @@ void loop() {
     if (accel_sensor.new_state_) {
       Serial.println(ACCEL_STATES_NAMES[(uint8_t)accel_sensor.state_]);
       accel_sensor.new_state_ = false;
+    }
+    now = millis();
+    if (now - last > 500) {
+      last = now;
+      Serial.print("corrected angle = ");
+      Serial.println(accel_sensor.current_mrad_ -
+                     accel_sensor.calibration_mrad_);
     }
 #if 0
     // Serial.println("OK");
