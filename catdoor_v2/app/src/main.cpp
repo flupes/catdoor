@@ -20,7 +20,8 @@
 static const TimeSpan margin_after_sunrise(0, 0, 45, 0);
 static const TimeSpan margin_before_sunset(0, 2, 0, 0);
 
-static const unsigned long LOOP_PERIOD_MS = 10;
+static const unsigned long LOOP_PERIOD_MS = 25;
+static const uint8_t AJAR_OUT_COUNT_TO_JAMMED = 2 * 1000 / LOOP_PERIOD_MS;
 
 // To debug during dark period
 static const bool debug_mode = false;
@@ -158,6 +159,7 @@ void loop() {
   unsigned long sleep_ms;
   static Solenoids::state_t prev_actuators_state = Solenoids::OFF;
   static char buffer[24];
+  static uint8_t jammed_counter = 0;
 
   if ((now - last_time) > 10 * 1000) {
     if (rtc_read) {
@@ -270,10 +272,15 @@ void loop() {
   // Detect jammed condition and try to resolve it
   if (accel_sensor.state_ == Accel::AJAR_OUT &&
       sol_actuators.state() == Solenoids::OFF) {
-    if ((now - last_unjam) > Solenoids::COOLDOWN_DURATION_MS) {
-      last_unjam = now;
-      sol_actuators.unjam();
-      mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "UNJAM");
+    jammed_counter++;
+    if (jammed_counter > AJAR_OUT_COUNT_TO_JAMMED) {
+      // need to "debounce" this jammed condition because
+      // sudden air flow can trigger an AJAR_OUT
+      if ((now - last_unjam) > Solenoids::COOLDOWN_DURATION_MS) {
+        last_unjam = now;
+        sol_actuators.unjam();
+        mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "UNJAM");
+      }
     }
   }
 
@@ -284,6 +291,10 @@ void loop() {
       mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "HOT_RELEASE");
     }
     prev_actuators_state = sol_actuators.state();
+  }
+
+  if (accel_sensor.state_ == Accel::CLOSED) {
+    jammed_counter = 0;
   }
 
   // Let the MQTT client do some work
