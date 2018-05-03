@@ -60,6 +60,7 @@ class Heartbeat(object):
 
     def missing_heartbeat(self):
         self.alive = False
+        self.out_of_sync = None
         title = "Catdoor Error"
         msg = "Catdoor considered dead (last published heartbeat @ "+time2str(self.last_beat)+")"
         print(time2str(localtime())+" | " +msg)
@@ -74,12 +75,15 @@ class Heartbeat(object):
             self.timer.cancel()
         self.timer = threading.Timer(self.duration, self.missing_heartbeat)
         self.timer.start()
+        self.check_sync(msg)
 
+    def check_sync(self, msg):
         args = msg.payload.split()
         strt = args[0]+" "+args[1]
         rtc = datetime.strptime(strt, '%Y-%m-%d %H:%M:%S')
         now = datetime.now()
-        diff = (rtc-now).total_seconds()
+        dst = time.localtime().tm_isdst
+        diff = (rtc-now+dst*3600).total_seconds()
         if abs(diff) > 20:
             if self.out_of_sync != True:
                 title = "Catdoor Notification"
@@ -134,7 +138,7 @@ class DoorState(object):
 
     def new_state(self, msg):
         print (time2str(localtime())+" | got new doorstate : "+msg.payload)
-        self.state = msg.payload.split()[2]
+        self.state = msg.payload.split()[3]
         if self.state == "OPEN_OUT":
             self.open_out = True
         if self.state == "OPEN_IN":
@@ -185,7 +189,7 @@ class BatteryMonitor(object):
 
     def new_voltage(self, msg):
         print (time2str(localtime())+" | got new battery_v : "+msg.payload)
-        self.__add(float(msg.payload.split()[2]))
+        self.__add(float(msg.payload.split()[3]))
         volts = self.__avg()
         print ("Average Voltage = %.3f V / current mode = %s") % (volts, self.mode)
         if volts > self.no_battery_threshold:
@@ -229,7 +233,7 @@ def catdoor_message(msg):
     print (time2str(localtime())+" | got new message : "+msg.payload)
     title = "Catdoor Notification"
     args = msg.payload.split()
-    key = args[2]
+    key = args[3]
     if key == "LOCKED":
         msg = "LOCKED (will re-open tomorrow morning around "+args[3]+")"
     elif key == "UNLOCKED":
