@@ -14,7 +14,7 @@ void MQTT_Client::connect_wifi(const char* ssid, const char* pass) {
     // In addition, after 5 minutes of trying (15 try x 20s), we also
     // force a reset. Reset will trigger unjam, we do not want too
     // unjamming too often when network is totally down (5 minutes is good).
-    visual.warning();
+    visual_.warning();
     PRINT("Attempting to connect to WEP network, SSID: ");
     PRINTLN(ssid);
     status = WiFi.begin(ssid, pass);
@@ -25,7 +25,7 @@ void MQTT_Client::connect_wifi(const char* ssid, const char* pass) {
       PRINTLN(ip);
 #endif
     } else {
-      visual.error();
+      visual_.error();
       wdt_reset();
       PRINT(nbtry);
       PRINT(" connection error: status=");
@@ -41,7 +41,7 @@ void MQTT_Client::connect_wifi(const char* ssid, const char* pass) {
     }
     wdt_reset();
   }
-  visual.ok();
+  visual_.ok();
 }
 
 bool MQTT_Client::connect_client() {
@@ -54,14 +54,14 @@ bool MQTT_Client::connect_client() {
   wdt_configure(11);
   // wdt_disable();
   while (!ok && nbtry < MAX_CLIENT_RETRIES) {
-    visual.warning();
+    visual_.warning();
     PRINT("Attempting MQTT connection... ");
     nbtry++;
     if (connect("MistyDoor")) {
       PRINTLN("connected");
       ok = true;
     } else {
-      visual.error();
+      visual_.error();
       PRINT(nbtry);
       PRINT(" failed (rc=");
       PRINT(state());
@@ -80,38 +80,21 @@ bool MQTT_Client::connect_client() {
     PRINTLN("The board should reboot now...");
     wdt_system_reset();
   }
-  visual.ok();
+  visual_.ok();
   wdt_configure(4);
   // We should never return false, since we rebooted first!
   return ok;
 }
 
-void MQTT_Client::publish_heartbeat(DateTime dt, bool daytime) {
-  dt.toString(payload);
-  size_t len = strlen(payload);
-  if (daytime) {
-    strcpy(payload + len, " OPEN");
-  } else {
-    strcpy(payload + len, " LOCKED");
-  }
-  PRINT("payload=");
-  PRINTLN(payload);
-  if (connect_client()) {
-    publish(TOPIC_HEARTBEAT, payload);
-  } else {
-    PRINTLN("Error: mqttClient not connected anymore");
-  }
-}
-
 void MQTT_Client::publish_timed_msg(unsigned long ms, const char* topic,
                                     const char* message) {
-  TimeSpan duration((ms - synched_ms) / 1000);
-  DateTime current = synched_time + duration;
-  sprintf(payload, "%04d-%02d-%02d %02d:%02d:%02d %s",  // date time payload
-          current.year(), current.month(), current.day(), current.hour(),
-          current.minute(), current.second(), message);
+  TimeSpan duration((ms - synched_ms_) / 1000);
+  DateTime current = synched_time_ + duration;
+  current.toString(payload_);
+  size_t len = strlen(payload_);
+  strcpy(payload_ + len, message);
   if (connect_client()) {
-    publish(topic, payload);
+    publish(topic, payload_);
   } else {
     PRINTLN("Error: mqtt client not connected anymore!");
   }

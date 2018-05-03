@@ -27,27 +27,25 @@
 class MQTT_Client : public PubSubClient {
  public:
   MQTT_Client(WiFiClient& wifi, VisualFeedback& fb)
-      : PubSubClient(wifi), visual(fb){};
+      : PubSubClient(wifi), visual_(fb){};
 
   void connect_wifi(const char* ssid, const char* pass);
 
   bool connect_client();
 
-  void publish_heartbeat(DateTime dt, bool daytime);
-
   void publish_timed_msg(unsigned long ms, const char* topic,
                          const char* message);
 
   void sync_time(DateTime dt, unsigned long ms) {
-    synched_time = dt;
-    synched_ms = ms;
+    synched_time_ = dt;
+    synched_ms_ = ms;
   }
 
  protected:
-  char payload[48];
-  DateTime synched_time;
-  unsigned long synched_ms;
-  VisualFeedback& visual;
+  char payload_[48];
+  DateTime synched_time_;
+  unsigned long synched_ms_;
+  VisualFeedback& visual_;
 };
 
 #endif
