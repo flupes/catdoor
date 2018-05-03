@@ -1,6 +1,7 @@
 #include "RTClib.h"
 #include "daytimes.h"
 #include "ledctrl.h"
+#include "m0_hf_pwm.h"
 #include "mqtt_client.h"
 #include "netcfg.h"
 #include "utils.h"
@@ -9,7 +10,7 @@
 RTC_DS3231 rtc;
 char buffer[64];
 
-LedCtrl status_led;
+LedCtrl& status_led = LedCtrl::Instance();
 WiFiClient wifi_client;
 MQTT_Client mqtt_client(wifi_client, status_led);
 
@@ -45,6 +46,11 @@ void setup() {
   mqtt_client.connect_client();
 
   wdt_configure(5);
+
+  DateTime utc_time = rtc.now();
+  unsigned int now = millis();
+  DateTime local_time = utc_time.getLocalTime(TIME_ZONE_OFFSET);
+  mqtt_client.sync_time(local_time, now);
 }
 
 static const unsigned long PERIOD = 20;
@@ -79,7 +85,14 @@ void loop() {
       status_led.alive();
     }
     perf.start();
-    mqtt_client.publish_heartbeat(local, daylight);
+    char msg[8];
+    if (daylight) {
+      strcpy(msg, "OPEN");
+    } else {
+      strcpy(msg, "CLOSED");
+    }
+    unsigned int now = millis();
+    mqtt_client.publish_timed_msg(now, TOPIC_HEARTBEAT, msg);
     perf.stop();
     last_time = now;
   }
