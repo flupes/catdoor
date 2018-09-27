@@ -37,5 +37,7 @@ Upload with:
     pio run -v --target upload
 
 Serial Monitor:
-
+    pio device list
+    pio device monitor --port /dev/cu.usbmodem1421 --baud 115200
+      # or on PC:
     pio device monitor --port COM29 --baud 115200
