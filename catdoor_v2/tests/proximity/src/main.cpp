@@ -1,5 +1,7 @@
 #include "ADA_VCNL4010.h"
 
+static const uint16_t THRESHOLD = 2090;
+
 ADA_VCNL4010 proxim_sensor = ADA_VCNL4010();
 
 bool ext_int = false;
@@ -20,16 +22,19 @@ void setup() {
   }
   Serial.println("Found VCNL4010");
 
+  // configure sensor
+  proxim_sensor.setModulatorFrequency(VCNL4010_390K625);
+  proxim_sensor.setLEDcurrent(16);
+  proxim_sensor.setProximityRate(VCNL4010_62_5Hz);
+
+  // prepare hardware interrupt
   pinMode(A1, INPUT_PULLUP);
   attachInterrupt(A1, proximThreshold, FALLING);
   delay(1);
-  proxim_sensor.setModulatorFrequency(VCNL4010_390K625);
-  proxim_sensor.setLEDcurrent(16);
 
-  proxim_sensor.setProximityRate(VCNL4010_62_5Hz);
   proxim_sensor.setProximThresholdInterrupt(3);
   proxim_sensor.setLowThreshold(0);
-  proxim_sensor.setHighThreshold(2200);
+  proxim_sensor.setHighThreshold(THRESHOLD);
   // Serial.print("Interrupt Control = ");
   // Serial.println(proxim_sensor.read8(0x89));
   // Serial.print("Low Threshold = ");
@@ -58,11 +63,11 @@ void loop() {
     Serial.print(proxim_sensor.readProximity());
     proxim_sensor.clearInterrupt(s);
     if (s == 1) {
-      proxim_sensor.setLowThreshold(2100);
+      proxim_sensor.setLowThreshold(THRESHOLD - 24);
       proxim_sensor.setHighThreshold(65535);
     } else {
       proxim_sensor.setLowThreshold(0);
-      proxim_sensor.setHighThreshold(2200);
+      proxim_sensor.setHighThreshold(THRESHOLD + 24);
     }
     delay(1);
     proxim_sensor.activateProximityThresholdInterrupt();
