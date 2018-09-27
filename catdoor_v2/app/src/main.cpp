@@ -23,6 +23,8 @@ static const TimeSpan margin_before_sunset(0, 2, 0, 0);
 static const unsigned long LOOP_PERIOD_MS = 25;
 static const uint8_t AJAR_OUT_COUNT_TO_JAMMED = 2 * 1000 / LOOP_PERIOD_MS;
 
+static const unsigned long STAY_OPEN_WIHOUT_CAT_SEC = 30;
+
 // To debug during dark period
 static const bool debug_mode = false;
 
@@ -246,10 +248,12 @@ void loop() {
     }
   }
 
-  // Relase if the cat give up after 12s (to avoid a HOT_RELEASE much later)
+  // Release if the cat is not detected after some time (to avoid a HOT_RELEASE
+  // much later)
   if (proxim_sensor.state == Proxim::CLEAR &&
       sol_actuators.state() == Solenoids::ON &&
-      accel_sensor.state_ == Accel::CLOSED && (now - door_clear_time) > 12000) {
+      accel_sensor.state_ == Accel::CLOSED &&
+      (now - door_clear_time) > STAY_OPEN_WIHOUT_CAT_SEC * 1000) {
     sol_actuators.release();
     mqtt_client.publish_timed_msg(now, TOPIC_SOLENOIDS, "RELEASE");
   }
