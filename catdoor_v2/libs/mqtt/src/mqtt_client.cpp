@@ -92,7 +92,8 @@ void MQTT_Client::publish_timed_msg(unsigned long ms, const char* topic,
   DateTime current = synched_time_ + duration;
   current.toString(payload_);
   size_t len = strlen(payload_);
-  strcpy(payload_ + len, message);
+  strcpy(payload_ + len, " ");
+  strcpy(payload_ + len + 1, message);
   if (connect_client()) {
     publish(topic, payload_);
   } else {
