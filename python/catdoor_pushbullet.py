@@ -82,8 +82,8 @@ class Heartbeat(object):
         strt = args[0]+" "+args[1]
         rtc = datetime.strptime(strt, '%Y-%m-%d %H:%M:%S')
         now = datetime.now()
-        dst = time.localtime().tm_isdst
-        diff = (rtc-now+dst*3600).total_seconds()
+        dst = localtime().tm_isdst
+        diff = (rtc-now).total_seconds()+dst*3600
         if abs(diff) > 20:
             if self.out_of_sync != True:
                 title = "Catdoor Notification"
