@@ -127,11 +127,11 @@ class DoorState(object):
         if self.open_out:
             self.open_out = False
             direction = "OUT"
-            msg = "Misty went out for a walk @ "+time2str(localtime())
+            msg = "Luna went out for a walk @ "+time2str(localtime())
         if self.open_in:
             self.open_in = False
             direction = "IN"
-            msg = "Misty came in for confort @ "+time2str(localtime())
+            msg = "Luna came in for confort @ "+time2str(localtime())
         print(time2str(localtime())+" | door cycle " + direction + " complete.")
         title = "Catdoor Cycled " + direction
         publish(title, msg)
