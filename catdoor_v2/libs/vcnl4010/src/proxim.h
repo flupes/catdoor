@@ -6,7 +6,8 @@
 
 class Proxim : public ADA_VCNL4010 {
  public:
-  static const uint16_t THRESHOLD = 2090;
+  static const uint16_t CAT_THRESHOLD = 2010;
+  static const uint16_t CLEAR_THRESHOLD = 2008;
   typedef enum { CLEAR, CAT } state_t;
   volatile state_t state;
   volatile bool new_state;
@@ -20,12 +21,12 @@ class Proxim : public ADA_VCNL4010 {
     clearInterrupt(istatus);
     // PRINTLN(readProximity());
     if (istatus == 1) {
-      setLowThreshold(THRESHOLD - 24);
+      setLowThreshold(CLEAR_THRESHOLD);
       setHighThreshold(65535);
       state = CAT;
     } else {
       setLowThreshold(0);
-      setHighThreshold(THRESHOLD + 24);
+      setHighThreshold(CAT_THRESHOLD);
       state = CLEAR;
     }
     activateProximityThresholdInterrupt();

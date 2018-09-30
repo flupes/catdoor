@@ -1,6 +1,7 @@
 #include "ADA_VCNL4010.h"
 
-static const uint16_t THRESHOLD = 2090;
+static const uint16_t CAT_THRESHOLD = 2010;
+static const uint16_t CLEAR_THRESHOLD = 2008;
 
 ADA_VCNL4010 proxim_sensor = ADA_VCNL4010();
 
@@ -34,7 +35,8 @@ void setup() {
 
   proxim_sensor.setProximThresholdInterrupt(3);
   proxim_sensor.setLowThreshold(0);
-  proxim_sensor.setHighThreshold(THRESHOLD);
+  proxim_sensor.setHighThreshold(CAT_THRESHOLD);
+
   // Serial.print("Interrupt Control = ");
   // Serial.println(proxim_sensor.read8(0x89));
   // Serial.print("Low Threshold = ");
@@ -55,6 +57,7 @@ void loop() {
   //   counter = 0;
   // }
   counter++;
+
   if (ext_int) {
     uint8_t s = proxim_sensor.readInterruptStatus();
     delay(1);
@@ -63,11 +66,11 @@ void loop() {
     Serial.print(proxim_sensor.readProximity());
     proxim_sensor.clearInterrupt(s);
     if (s == 1) {
-      proxim_sensor.setLowThreshold(THRESHOLD - 24);
+      proxim_sensor.setLowThreshold(CLEAR_THRESHOLD);
       proxim_sensor.setHighThreshold(65535);
     } else {
       proxim_sensor.setLowThreshold(0);
-      proxim_sensor.setHighThreshold(THRESHOLD + 24);
+      proxim_sensor.setHighThreshold(CAT_THRESHOLD);
     }
     delay(1);
     proxim_sensor.activateProximityThresholdInterrupt();
