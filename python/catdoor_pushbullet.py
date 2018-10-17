@@ -195,11 +195,11 @@ class BatteryMonitor(object):
         if volts > self.no_battery_threshold:
             if self.mode != 'NO_BATTERY':
                 self.mode = 'NO_BATTERY'
-                publish("Catdoor Warning", "No battery present!")
+#                publish("Catdoor Warning", "No battery present!")
         elif volts < self.low_battery_threshold:
             if self.mode != 'LOW_BATTERY':
                 self.mode = 'LOW_BATTERY'
-                publish("Catdoor Error", "LOW battery!")
+#                publish("Catdoor Error", "LOW battery!")
         elif self.mode == 'LOW_BATTERY':
             if volts > self.charging_threshold:
                 self.mode = 'CHARGING'
@@ -208,17 +208,17 @@ class BatteryMonitor(object):
         elif self.battery_full_threshold < volts and volts < self.no_battery_threshold:
             if self.mode != 'FULL':
                 self.mode = 'FULL'
-                publish("Catdoor Notification", "Battery is fully charged!")
+#                publish("Catdoor Notification", "Battery is fully charged!")
         elif volts < self.use_battery_threshold and \
             volts < self.prev_volts:
             if self.mode != 'BATTERY':
                 self.mode = 'BATTERY'
-                publish("Catdoor Warning", "Running on Battery Power")
+#                publish("Catdoor Warning", "Running on Battery Power")
         elif volts > self.charging_threshold and \
             volts > self.prev_volts:
             if self.mode != 'CHARGING':
                 self.mode = 'CHARGING'
-                publish("Catdoor Notification", "Running on External Power")
+#                publish("Catdoor Notification", "Running on External Power")
         if abs(self.prev_volts-volts) > self.significant_change:
             self.prev_volts = volts
 
@@ -235,9 +235,9 @@ def catdoor_message(msg):
     args = msg.payload.split()
     key = args[3]
     if key == "LOCKED":
-        msg = "LOCKED (will re-open tomorrow morning around "+args[3]+")"
+        msg = "LOCKED (will re-open tomorrow morning around "+args[4]+")"
     elif key == "UNLOCKED":
-        msg = "UNLOCKED (will close this afternoon at "+args[3]+")"
+        msg = "UNLOCKED (will close this afternoon at "+args[4]+")"
     else:
         msg = msg.payload
     publish(title, msg)
