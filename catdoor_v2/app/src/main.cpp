@@ -18,7 +18,7 @@
 
 // Customization for acceptable daylight times
 static const TimeSpan margin_after_sunrise(0, 0, 45, 0);
-static const TimeSpan margin_before_sunset(0, 2, 0, 0);
+static const TimeSpan margin_before_sunset(0, 3, 0, 0);
 
 static const unsigned long LOOP_PERIOD_MS = 25;
 static const uint8_t AJAR_OUT_COUNT_TO_JAMMED = 2 * 1000 / LOOP_PERIOD_MS;
