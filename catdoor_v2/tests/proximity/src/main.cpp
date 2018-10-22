@@ -1,51 +1,24 @@
-#include "ADA_VCNL4010.h"
+#include "proxim.h"
 
 static const uint16_t CAT_THRESHOLD = 2010;
 static const uint16_t CLEAR_THRESHOLD = 2008;
 
-ADA_VCNL4010 proxim_sensor = ADA_VCNL4010();
+Proxim proxim_sensor;
 
 bool ext_int = false;
 
-void proximThreshold() { ext_int = true; }
+void proximThreshold() { proxim_sensor.new_state = true; }
 
 void setup() {
-  Serial.begin(115200);
-  while (!Serial) {
-    ;  // wait for serial port to connect. Needed for native USB port only
-  }
-  Serial.println("Testing VCNL4010!");
-
+  // init communication
   if (!proxim_sensor.begin()) {
-    Serial.println("Sensor not found :(");
+    PRINTLN("Sensor not found :(");
     while (1)
       ;
   }
-  Serial.println("Found VCNL4010");
+  PRINTLN("Found VCNL4010");
 
-  // configure sensor
-  proxim_sensor.setModulatorFrequency(VCNL4010_390K625);
-  proxim_sensor.setLEDcurrent(16);
-  proxim_sensor.setProximityRate(VCNL4010_62_5Hz);
-
-  // prepare hardware interrupt
-  pinMode(A1, INPUT_PULLUP);
-  attachInterrupt(A1, proximThreshold, FALLING);
-  delay(1);
-
-  proxim_sensor.setProximThresholdInterrupt(3);
-  proxim_sensor.setLowThreshold(0);
-  proxim_sensor.setHighThreshold(CAT_THRESHOLD);
-
-  // Serial.print("Interrupt Control = ");
-  // Serial.println(proxim_sensor.read8(0x89));
-  // Serial.print("Low Threshold = ");
-  // Serial.println(proxim_sensor.read16(0x8A));
-  // Serial.print("High Threshold = ");
-  // Serial.println(proxim_sensor.read16(0x8C));
-  // proxim_sensor.write8(VCNL4010_INTSTAT, 0x0);
-  proxim_sensor.activateProximityThresholdInterrupt();
-  delay(1);
+  proxim_sensor.init();
 }
 
 void loop() {
@@ -58,24 +31,13 @@ void loop() {
   // }
   counter++;
 
-  if (ext_int) {
-    uint8_t s = proxim_sensor.readInterruptStatus();
-    delay(1);
-    Serial.print(s);
-    Serial.print(" - ");
-    Serial.print(proxim_sensor.readProximity());
-    proxim_sensor.clearInterrupt(s);
-    if (s == 1) {
-      proxim_sensor.setLowThreshold(CLEAR_THRESHOLD);
-      proxim_sensor.setHighThreshold(65535);
+  if (proxim_sensor.new_state) {
+    proxim_sensor.process();
+    if (proxim_sensor.state == Proxim::CAT) {
+      Serial.println("CAT");
     } else {
-      proxim_sensor.setLowThreshold(0);
-      proxim_sensor.setHighThreshold(CAT_THRESHOLD);
+      Serial.println("CLEAR");
     }
-    delay(1);
-    proxim_sensor.activateProximityThresholdInterrupt();
-    Serial.println();
-    ext_int = false;
   }
   delay(20);
 }

@@ -17,8 +17,8 @@
 #define VBATPIN A7
 
 // Customization for acceptable daylight times
-static const TimeSpan margin_after_sunrise(0, 0, 45, 0);
-static const TimeSpan margin_before_sunset(0, 3, 0, 0);
+static const TimeSpan margin_after_sunrise(0, 2, 0, 0);
+static const TimeSpan margin_before_sunset(0, 4, 0, 0);
 
 static const unsigned long LOOP_PERIOD_MS = 25;
 static const uint8_t AJAR_OUT_COUNT_TO_JAMMED = 2 * 1000 / LOOP_PERIOD_MS;
@@ -38,8 +38,6 @@ WiFiClient wifi_client;
 MQTT_Client mqtt_client(wifi_client, status_led);
 
 // interupts function prototypes
-void proximThreshold() { proxim_sensor.new_state = true; }
-
 void accelReady() { accel_sensor.data_ready_ = true; }
 
 void setup() {
@@ -94,25 +92,12 @@ void setup() {
   // Proximity sensor setup
   //
   if (!proxim_sensor.begin()) {
-    PRINTLN("Proximity sensor not found!");
+    PRINTLN("Sensor not found :(");
     while (1)
       ;
   }
-  PRINTLN("VCNL4010 found.");
-
-  // configure sensor
-  proxim_sensor.setModulatorFrequency(VCNL4010_390K625);
-  proxim_sensor.setLEDcurrent(18);
-  proxim_sensor.setProximityRate(VCNL4010_62_5Hz);
-
-  // prepare hardware interrupt
-  pinMode(A1, INPUT_PULLUP);
-  attachInterrupt(A1, proximThreshold, FALLING);
-  delay(1);
-  proxim_sensor.setProximThresholdInterrupt(3);
-  proxim_sensor.setLowThreshold(0);
-  proxim_sensor.setHighThreshold(Proxim::CAT_THRESHOLD);
-  proxim_sensor.activateProximityThresholdInterrupt();
+  PRINTLN("Found VCNL4010");
+  proxim_sensor.init();
 
   // RTC
   if (!rtc.begin()) {
