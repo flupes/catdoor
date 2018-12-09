@@ -29,6 +29,8 @@ public:
 
   uint32_t GetAnalogFeedback();
 
+  uint32_t GetAveragedAnalogFeedback(uint8_t nbSamples, uint32_t periodMs = 10);
+
   uint32_t GetMinPeriod() {
     return min_period_;
   }

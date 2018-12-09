@@ -39,6 +39,16 @@ uint32_t M0HwServo::GetAnalogFeedback() {
   return 0;
 }
 
+uint32_t M0HwServo::GetAveragedAnalogFeedback(uint8_t nbSamples,
+                                              uint32_t periodMs) {
+  uint32_t voltage = 0.0;
+  for (uint8_t i = 0; i < nbSamples; i++) {
+    voltage += GetAnalogFeedback();
+    delay(periodMs);
+  }
+  return voltage / nbSamples;
+}
+
 void M0HwServo::Configure(uint32_t minPeriod, int minDegree, uint32_t maxPeriod,
                           int maxDegree) {
   min_period_ = minPeriod;
