@@ -74,15 +74,18 @@ class DoorMaster(object):
         userdata[msg.topic](msg)
 
 def deckdoor_state(msg):
-    print("deckdoor state: "+msg.payload)
+    print("deckdoor state: "+bytes.decode(msg.payload))
 
+def deckdoor_message(msg):
+    print("deckdoor message: "+bytes.decode(msg.payload))
 
 topiclist = {
-    '/deckdoor/state' : deckdoor_state
+    '/deckdoor/state' : deckdoor_state,
+    '/deckdoor/message' : deckdoor_message
 }
 
 mqtt_client = mqtt.Client("DoorMaster", True, topiclist)
-door_master = DoorMaster(mqtt_client, "localhost")
+door_master = DoorMaster(mqtt_client, "172.16.0.11")
 mqtt_client.on_connect = door_master.on_connect
 mqtt_client.on_message = door_master.on_message
 

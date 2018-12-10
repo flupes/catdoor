@@ -17,7 +17,7 @@
 // Topic names definition
 #define TOPIC_MESSAGE "/deckdoor/message"
 #define TOPIC_STATE "/deckdoor/state"
-#define TOPIC_MASTER "/master/command"
+#define TOPIC_MASTER "/doormaster/command"
 
 const uint32_t kClosedVoltageCount = 800;
 const uint32_t kOpenVoltageCount = 2900;
@@ -30,6 +30,7 @@ PubSubClient mqtt_client(wifi_client);
 long g_lastReconnectAttempt = 0;
 
 enum LockState { CLOSED = 0, OPEN = 1, JAMMED = 2 };
+static const char* STATE_NAMES[] = {"CLOSED", "OPEN", "JAMMED"};
 
 LockState g_desiredDoorState = CLOSED;
 
@@ -64,15 +65,23 @@ void connect_wifi() {
       wdt_system_reset();
     }
   }
+  PRINT("in connect, status = ");
+  PRINT(status);
+  PRINT(" | verification: ");
+  PRINTLN(WiFi.status());
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
   if (strcmp(topic, TOPIC_MASTER) == 0) {
-    PRINTLN("Received an order from master");
+    PRINT("Received an order from master : [");
+    char buffer[32];
+    strncpy(buffer, (char*)payload, length);
+    PRINT(buffer);
+    PRINTLN("]");
     // Master sends a very basic topic: a byte!
     // Anything else than 0x01 is considered a CLOSED
     g_desiredDoorState = CLOSED;
-    if (*payload == (byte)1) {
+    if (((char*)payload)[0] == '1') {
       g_desiredDoorState = OPEN;
     }
   } else {
@@ -81,7 +90,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 bool connect_client() {
-  if (wifi_client.status() != WL_CONNECTED) {
+  int status = wifi_client.status();
+  // PRINT("wifi status = ");
+  // PRINTLN(status);
+  if (status == WL_DISCONNECTED || status == WL_CONNECTION_LOST) {
     PRINTLN("Wifi is not connected anymore: will reboot now!");
     wdt_system_reset();
   }
@@ -92,6 +104,7 @@ bool connect_client() {
   wdt_reset();
   if (mqtt_client.connect(CLIENT_NAME)) {
     PRINTLN("connected.");
+    mqtt_client.subscribe(TOPIC_MASTER);
     mqtt_client.setCallback(callback);
   } else {
     PRINT(" failed (rc=");
@@ -140,44 +153,56 @@ void loop() {
   static const int closed_deg = servo.GetMinDegreeAngle();
   static const int open_deg = servo.GetMaxDegreeAngle();
 
+  static long elapsed = millis();
+
+  long now = millis();
+
   if (!mqtt_client.connected()) {
-    long now = millis();
+    PRINTLN("client connection lost");
     if (now - g_lastReconnectAttempt > 1000 * RECONNECT_PERIOD_SEC) {
       if (connect_client()) {
+        PRINTLN("client reconnected");
         g_lastReconnectAttempt = 0;
       }
     }
-  } else {
-    mqtt_client.loop();
   }
 
-  uint32_t current_voltage_count = servo.GetAveragedAnalogFeedback(3);
-  LockState lock_state = JAMMED;
-  if (current_voltage_count < kClosedVoltageCount) {
-    lock_state = CLOSED;
-  }
-  if (current_voltage_count > kOpenVoltageCount) {
-    lock_state = OPEN;
-  }
-  float measuredvbat = analogRead(A7);
-  measuredvbat *= 2;     // we divided by 2, so multiply back
-  measuredvbat *= 3.3;   // Multiply by 3.3V, our reference voltage
-  measuredvbat /= 4096;  // convert to voltage (12 bits)
-  Serial.print("VBat: ");
-  Serial.println(measuredvbat);
+  if (now - elapsed > 6000) {
+    elapsed = now;
+    uint32_t current_voltage_count = servo.GetAveragedAnalogFeedback(3);
+    LockState lock_state = JAMMED;
+    if (current_voltage_count < kClosedVoltageCount) {
+      lock_state = CLOSED;
+    }
+    if (current_voltage_count > kOpenVoltageCount) {
+      lock_state = OPEN;
+    }
+    PRINT("door state = ");
+    PRINTLN(STATE_NAMES[lock_state]);
+    mqtt_client.publish(TOPIC_STATE, STATE_NAMES[lock_state]);
 
-  if (lock_state == JAMMED) {
-    // We are in trouble and should devise something smart...
-    PRINTLN("Lock is JAMMED!");
-  } else {
-    if (g_desiredDoorState != lock_state) {
-      if (g_desiredDoorState == OPEN) {
-        servo.SetDegreeAngle(open_deg);
-      } else {
-        servo.SetDegreeAngle(closed_deg);
+    float measuredvbat = analogRead(A7);
+    measuredvbat *= 2;     // we divided by 2, so multiply back
+    measuredvbat *= 3.3;   // Multiply by 3.3V, our reference voltage
+    measuredvbat /= 4096;  // convert to voltage (12 bits)
+    Serial.print("VBat: ");
+    Serial.println(measuredvbat);
+
+    if (lock_state == JAMMED) {
+      // We are in trouble and should devise something smart...
+      PRINTLN("Lock is JAMMED!");
+    } else {
+      if (g_desiredDoorState != lock_state) {
+        if (g_desiredDoorState == OPEN) {
+          servo.SetDegreeAngle(open_deg);
+        } else {
+          servo.SetDegreeAngle(closed_deg);
+        }
       }
     }
   }
 
+  mqtt_client.loop();
+  delay(100);
   wdt_reset();
 }
