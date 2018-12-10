@@ -9,7 +9,7 @@ from watchdog.events import FileDeletedEvent
 from watchdog.events import FileModifiedEvent
 
 #
-# Commanded States:
+# File Commanded States:
 # 0 --> CLOSED
 # 1 --> OPEN
 # 2 --> AUTO (time of day)
@@ -56,7 +56,6 @@ class FileChangedHandler(FileSystemEventHandler):
             self.state = 2
 
 class DoorMaster(object):
-
     def __init__(self, mqtt_client, server):
         self.client = mqtt_client
         self.topic = "/doormaster/command"
@@ -67,40 +66,61 @@ class DoorMaster(object):
         print("pushing", state)
         self.client.publish(self.topic, state)
 
+    def on_connect(self, client, userdata, flags, rc):
+        print("Connected "+str(client)+" with result code "+str(rc))
+        self.client.subscribe("/deckdoor/#")
 
-mqtt_client = mqtt.Client("DoorMaster")
+    def on_message(self, client, userdata, flags, msg):
+        userdata[msg.topic](msg)
+
+def deckdoor_state(msg):
+    print("deckdoor state: "+msg.payload)
+
+
+topiclist = {
+    '/deckdoor/state' : deckdoor_state
+}
+
+mqtt_client = mqtt.Client("DoorMaster", True, topiclist)
 door_master = DoorMaster(mqtt_client, "localhost")
+mqtt_client.on_connect = door_master.on_connect
+mqtt_client.on_message = door_master.on_message
 
 event_handler = FileChangedHandler()
-event_handler.read_state()
 
 observer = Observer()
 observer.schedule(event_handler, ".")
 observer.start()
 mqtt_client.loop_start()
 
+time.sleep(3)
+event_handler.read_state()
+
+testing = True
 flip = True
 elapsed = time.time()
 try:
     while True:
-        now = time.time()
-        if (now-elapsed > 6):
-            if event_handler.state == 2:
+        if event_handler.state == 2: # this is automatic mode
+            if not testing: # set open or close depending the time of day
+                now = time.localtime()
+                if 9 <= now.tm_hour and now.tm_hour <= 17:
+                    door_master.push_state(1)
+                else:
+                    door_master.push_state(0)
+            else: # flip-flop open-closed for testing
                 if flip:
                     door_master.push_state(1)
                     flip = False
                 else:
                     door_master.push_state(0)
                     flip = True
+        else: # this is override mode (file based)
+            if event_handler.state == 1:
+                door_master.push_state(1)
             else:
-                if event_handler.state == 1:
-                    door_master.push_state(1)
-                else:
-                    door_master.push_state(0)
-            elapsed = now
-        #if 9 <= now.tm_hour and now.tm_hour <= 17:
-        time.sleep(1)
-
+                door_master.push_state(0)
+        time.sleep(6)
 except KeyboardInterrupt:
     observer.stop()
     mqtt_client.loop_stop()
