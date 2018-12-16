@@ -1,14 +1,13 @@
 import paho.mqtt.client as mqtt
 
 def doormaster_command(msg):
-    print("Got command : ")
     # print(type(msg.payload))
     # print(bytes.decode(msg.payload))
     value = int(bytes.decode(msg.payload))
     if value == 1 :
-        print("open")
+        print("Got command: OPEN")
     else:
-        print("closed")
+        print("Got command: CLOSE")
 
 def deckdoor_state(msg):
     print("Got state : "+str(msg.payload))
